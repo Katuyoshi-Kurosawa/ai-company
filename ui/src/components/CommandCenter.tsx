@@ -27,7 +27,7 @@ const MTG_TYPES = [
 type Mode = 'select' | 'company' | 'mtg';
 
 export function CommandCenter({ agents, theme, relay, onExecute }: Props) {
-  const [mode, setMode] = useState<Mode>('select');
+  const [mode, setMode] = useState<Mode>('company');
 
   // 全工程
   const [companyTheme, setCompanyTheme] = useState('');
@@ -96,10 +96,8 @@ export function CommandCenter({ agents, theme, relay, onExecute }: Props) {
           ].map(m => (
             <button key={m.id}
               onClick={() => setMode(m.id)}
-              disabled={!relay.connected}
               className={`w-full text-left p-3 rounded-lg cursor-pointer transition-all
-                ${mode === m.id ? 'bg-indigo-500/15 ring-1 ring-indigo-400/40' : 'bg-white/5 hover:bg-white/10'}
-                ${!relay.connected ? 'opacity-30 cursor-not-allowed' : ''}`}>
+                ${mode === m.id ? 'bg-indigo-500/15 ring-1 ring-indigo-400/40' : 'bg-white/5 hover:bg-white/10'}`}>
               <div className="flex items-center gap-2">
                 <span className="text-xl">{m.icon}</span>
                 <div>
@@ -177,6 +175,12 @@ export function CommandCenter({ agents, theme, relay, onExecute }: Props) {
               </div>
             </div>
 
+            {!relay.connected && (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-400 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+                リレー未接続。ターミナルで <code className="bg-black/30 px-1.5 py-0.5 rounded font-mono text-xs">node relay.js</code> を起動してください
+              </div>
+            )}
             <button
               onClick={handleCompanyStart}
               disabled={!companyTheme.trim() || !relay.connected}
@@ -247,6 +251,12 @@ export function CommandCenter({ agents, theme, relay, onExecute }: Props) {
               </div>
             </div>
 
+            {!relay.connected && (
+              <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-400 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+                リレー未接続。ターミナルで <code className="bg-black/30 px-1.5 py-0.5 rounded font-mono text-xs">node relay.js</code> を起動してください
+              </div>
+            )}
             <button
               onClick={handleMtgStart}
               disabled={!mtgAgenda.trim() || !relay.connected}
