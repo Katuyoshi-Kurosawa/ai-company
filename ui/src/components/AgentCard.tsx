@@ -1,5 +1,6 @@
 import type { Agent } from '../types';
 import { LEVELS } from '../data/constants';
+import { PixelCharacter } from './PixelCharacter';
 
 interface Props {
   agent: Agent;
@@ -25,7 +26,7 @@ export function AgentCard({ agent, onClick, compact }: Props) {
         onClick={onClick}
         className="flex flex-col items-center p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all hover:scale-105 cursor-pointer"
       >
-        <span className="text-2xl">{agent.icon}</span>
+        <PixelCharacter visual={agent.visual} size="sm" active={agent.active} />
         <span className="text-xs font-bold mt-1">{agent.name}</span>
         <span className="text-[10px] opacity-50">{agent.title}</span>
       </button>
@@ -40,7 +41,7 @@ export function AgentCard({ agent, onClick, compact }: Props) {
       className={`${getFrameStyle(agent.level)} rounded-xl cursor-pointer transition-all hover:scale-[1.02]`}
     >
       <div className="bg-[var(--color-dark-surface)] rounded-[10px] p-4 flex flex-col items-center gap-2">
-        <span className="text-4xl">{agent.icon}</span>
+        <PixelCharacter visual={agent.visual} size="lg" active={agent.active} />
         <div className="text-center">
           <div className="font-bold">{agent.name}</div>
           <div className="text-sm opacity-60">{agent.title}</div>

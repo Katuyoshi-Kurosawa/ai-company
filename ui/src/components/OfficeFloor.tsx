@@ -1,4 +1,5 @@
 import type { Agent, RoomId } from '../types';
+import { PixelCharacter } from './PixelCharacter';
 
 interface Props {
   agents: Agent[];
@@ -12,27 +13,25 @@ function getStatusDot(agent: Agent) {
 }
 
 function AgentBadge({ agent, onSelect, isSelected }: { agent: Agent; onSelect: () => void; isSelected: boolean }) {
-  const genderIcon = agent.visual.gender === 'female' ? '👩‍💼' : '👨‍💼';
   return (
     <button
       onClick={onSelect}
-      className={`group relative flex items-center gap-2 px-3 py-2 rounded-lg transition-all cursor-pointer
+      className={`group relative flex flex-col items-center p-2 rounded-lg transition-all cursor-pointer min-w-[90px]
         ${isSelected
           ? 'bg-blue-500/15 ring-1 ring-blue-400/50 shadow-lg shadow-blue-500/10'
           : 'bg-white/[0.03] hover:bg-white/[0.07]'
         }`}
     >
       <div className="relative">
-        <span className="text-2xl">{agent.icon}</span>
-        <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#181b25] ${getStatusDot(agent)}`} />
+        <PixelCharacter visual={agent.visual} size="sm" active={agent.active} />
+        <span className={`absolute bottom-1 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#181b25] ${getStatusDot(agent)}`} />
       </div>
-      <div className="text-left min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs">{genderIcon}</span>
-          <span className="text-sm font-semibold truncate">{agent.name}</span>
+      <div className="text-center min-w-0 mt-1">
+        <div className="flex items-center justify-center gap-1">
+          <span className="text-xs font-semibold truncate">{agent.name}</span>
           <span className="text-[10px] font-medium text-blue-400">Lv.{agent.level}</span>
         </div>
-        <span className="text-[11px] opacity-50 truncate block">{agent.title}</span>
+        <span className="text-[10px] opacity-50 truncate block">{agent.title}</span>
       </div>
     </button>
   );
@@ -60,7 +59,7 @@ function Room({ roomId, label, icon, agents, onSelect, selectedId }: {
         <span className="text-sm font-semibold tracking-wide">{label}</span>
         <span className="text-[10px] ml-auto opacity-30">{agents.length}名</span>
       </div>
-      <div className={`p-3 ${isLarge ? 'grid grid-cols-2 gap-2' : 'space-y-2'}`}>
+      <div className={`p-3 ${isLarge ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2'}`}>
         {agents.length > 0 ? (
           agents.map(a => (
             <AgentBadge key={a.id} agent={a} onSelect={() => onSelect(a)} isSelected={a.id === selectedId} />

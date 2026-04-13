@@ -1,4 +1,5 @@
 import type { Agent } from '../types';
+import { PixelCharacter } from './PixelCharacter';
 
 interface Props {
   agents: Agent[];
@@ -52,8 +53,8 @@ function NodeComponent({ node, onSelect, selectedId, depth = 0 }: {
           ${getFrameClass(a.level)}
         `}
       >
-        <span className="text-3xl mb-1">{a.icon}</span>
-        <span className="text-xs font-bold whitespace-nowrap">{a.name}</span>
+        <PixelCharacter visual={a.visual} size="sm" active={a.active} />
+        <span className="text-xs font-bold whitespace-nowrap mt-1">{a.name}</span>
         <span className="text-[10px] opacity-60 whitespace-nowrap">{a.title}</span>
         <span className="text-[10px] text-indigo-400">Lv.{a.level}</span>
       </button>
