@@ -53,6 +53,27 @@ export interface PrSettings {
   digestEnabled: boolean;          // 日次ダイジェスト生成
 }
 
+// カスタマーサクセス部長固有設定
+export interface CsSettings {
+  satisfactionTarget: number;      // 顧客満足度目標（%）
+  responseTimeTarget: number;      // 応答時間目標（分）
+  proactiveSupportEnabled: boolean; // プロアクティブサポート
+  feedbackLoop: boolean;           // フィードバックループ自動化
+  escalationRules: string;         // エスカレーションルール
+  supportChannels: string[];       // サポートチャネル
+}
+
+// 研究開発部長固有設定
+export interface RdSettings {
+  ideaGenerationMode: 'continuous' | 'burst' | 'deep';  // アイデア生成モード
+  moonShotEnabled: boolean;        // ムーンショット思考
+  disruptiveThinking: boolean;     // 破壊的イノベーション思考
+  prototypeSpeed: 'rapid' | 'standard' | 'thorough';  // プロトタイプ速度
+  focusAreas: string[];            // 注力分野
+  patentTracking: boolean;         // 特許・技術動向追跡
+  dailyIdeaQuota: number;          // 日次アイデア目標数
+}
+
 // UXリサーチ部長固有設定
 export interface UxResearchSettings {
   userTestingEnabled: boolean;     // ユーザーテスト実施
@@ -101,6 +122,8 @@ export interface Agent {
   hrSettings?: HrSettings;
   prSettings?: PrSettings;
   uxResearchSettings?: UxResearchSettings;
+  rdSettings?: RdSettings;
+  csSettings?: CsSettings;
 }
 
 export interface EscalationSettings {

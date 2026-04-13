@@ -14,7 +14,7 @@ interface Props {
 type Tab = 'status' | 'visual' | 'settings' | 'role' | 'badges' | 'compatibility';
 
 export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props) {
-  const hasRoleSettings = !!(agent.secretarySettings || agent.marketingSettings || agent.hrSettings || agent.prSettings || agent.uxResearchSettings);
+  const hasRoleSettings = !!(agent.secretarySettings || agent.marketingSettings || agent.hrSettings || agent.prSettings || agent.uxResearchSettings || agent.rdSettings || agent.csSettings);
   const [tab, setTab] = useState<Tab>('status');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(agent);
@@ -429,6 +429,111 @@ export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props)
                     </div>
                   </div>
                   <button onClick={() => onUpdate(agent.id, { prSettings: form.prSettings })}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer text-sm font-semibold">保存</button>
+                </>
+              )}
+
+              {agent.csSettings && (
+                <>
+                  <h3 className="text-sm font-bold" style={{ color: S.accent }}>カスタマーサクセス部長設定</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.csSettings?.proactiveSupportEnabled ?? false}
+                          onChange={e => setForm({ ...form, csSettings: { ...form.csSettings!, proactiveSupportEnabled: e.target.checked } })} />
+                        <span className="text-sm">プロアクティブサポート</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.csSettings?.feedbackLoop ?? false}
+                          onChange={e => setForm({ ...form, csSettings: { ...form.csSettings!, feedbackLoop: e.target.checked } })} />
+                        <span className="text-sm">フィードバック自動化</span>
+                      </label>
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>顧客満足度目標: {form.csSettings?.satisfactionTarget ?? 95}%</label>
+                      <input type="range" min={50} max={100} value={form.csSettings?.satisfactionTarget ?? 95}
+                        onChange={e => setForm({ ...form, csSettings: { ...form.csSettings!, satisfactionTarget: Number(e.target.value) } })}
+                        className="w-full" />
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>応答時間目標: {form.csSettings?.responseTimeTarget ?? 5}分</label>
+                      <input type="range" min={1} max={60} value={form.csSettings?.responseTimeTarget ?? 5}
+                        onChange={e => setForm({ ...form, csSettings: { ...form.csSettings!, responseTimeTarget: Number(e.target.value) } })}
+                        className="w-full" />
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>エスカレーションルール</label>
+                      <textarea value={form.csSettings?.escalationRules ?? ''}
+                        onChange={e => setForm({ ...form, csSettings: { ...form.csSettings!, escalationRules: e.target.value } })}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm h-16" />
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>サポートチャネル（カンマ区切り）</label>
+                      <textarea value={form.csSettings?.supportChannels?.join(', ') ?? ''}
+                        onChange={e => setForm({ ...form, csSettings: { ...form.csSettings!, supportChannels: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm h-16" />
+                    </div>
+                  </div>
+                  <button onClick={() => onUpdate(agent.id, { csSettings: form.csSettings })}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer text-sm font-semibold">保存</button>
+                </>
+              )}
+
+              {agent.rdSettings && (
+                <>
+                  <h3 className="text-sm font-bold" style={{ color: S.accent }}>研究開発部長設定</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.rdSettings?.moonShotEnabled ?? false}
+                          onChange={e => setForm({ ...form, rdSettings: { ...form.rdSettings!, moonShotEnabled: e.target.checked } })} />
+                        <span className="text-sm">ムーンショット思考</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.rdSettings?.disruptiveThinking ?? false}
+                          onChange={e => setForm({ ...form, rdSettings: { ...form.rdSettings!, disruptiveThinking: e.target.checked } })} />
+                        <span className="text-sm">破壊的イノベーション</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.rdSettings?.patentTracking ?? false}
+                          onChange={e => setForm({ ...form, rdSettings: { ...form.rdSettings!, patentTracking: e.target.checked } })} />
+                        <span className="text-sm">特許・技術追跡</span>
+                      </label>
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>アイデア生成モード</label>
+                      <select value={form.rdSettings?.ideaGenerationMode ?? 'continuous'}
+                        onChange={e => setForm({ ...form, rdSettings: { ...form.rdSettings!, ideaGenerationMode: e.target.value as 'continuous' | 'burst' | 'deep' } })}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm">
+                        <option value="continuous">連続生成（常時アイデア出し）</option>
+                        <option value="burst">バースト（短時間で大量生成）</option>
+                        <option value="deep">ディープ（1つを深掘り）</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>プロトタイプ速度</label>
+                      <select value={form.rdSettings?.prototypeSpeed ?? 'rapid'}
+                        onChange={e => setForm({ ...form, rdSettings: { ...form.rdSettings!, prototypeSpeed: e.target.value as 'rapid' | 'standard' | 'thorough' } })}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm">
+                        <option value="rapid">爆速（とにかく形にする）</option>
+                        <option value="standard">標準</option>
+                        <option value="thorough">じっくり（品質重視）</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>日次アイデア目標: {form.rdSettings?.dailyIdeaQuota ?? 10}</label>
+                      <input type="range" min={1} max={50} value={form.rdSettings?.dailyIdeaQuota ?? 10}
+                        onChange={e => setForm({ ...form, rdSettings: { ...form.rdSettings!, dailyIdeaQuota: Number(e.target.value) } })}
+                        className="w-full" />
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>注力分野（カンマ区切り）</label>
+                      <textarea value={form.rdSettings?.focusAreas?.join(', ') ?? ''}
+                        onChange={e => setForm({ ...form, rdSettings: { ...form.rdSettings!, focusAreas: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm h-16" />
+                    </div>
+                  </div>
+                  <button onClick={() => onUpdate(agent.id, { rdSettings: form.rdSettings })}
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer text-sm font-semibold">保存</button>
                 </>
               )}
