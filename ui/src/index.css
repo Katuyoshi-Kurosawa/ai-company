@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #121218;
+  --color-dark-surface: #1a1a24;
+  --color-dark-border: #2a2a3a;
+  --color-dark-text: #e0e0e0;
+  --color-dark-muted: #888;
+  --color-accent: #6366f1;
+  --color-accent-light: #818cf8;
+  --color-gold: #fbbf24;
+  --color-silver: #9ca3af;
+  --color-bronze: #d97706;
+  --color-platinum: #a78bfa;
+  --color-diamond: #22d3ee;
+  --color-rainbow-1: #ef4444;
+  --color-rainbow-2: #f97316;
+  --color-rainbow-3: #eab308;
+  --color-rainbow-4: #22c55e;
+  --color-rainbow-5: #3b82f6;
+  --color-rainbow-6: #8b5cf6;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes levelUp {
+  0% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.2); filter: brightness(2); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+@keyframes badgeSlide {
+  0% { opacity: 0; transform: translateX(100px) rotate(-10deg); }
+  60% { opacity: 1; transform: translateX(-10px) rotate(2deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+
+@keyframes expPulse {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-30px); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
+}
+
+@keyframes rainbowShift {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
