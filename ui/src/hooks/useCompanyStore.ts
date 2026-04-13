@@ -5,11 +5,48 @@ import { LEVELS } from '../data/constants';
 
 const STORAGE_KEY = 'ai-company-data';
 const NOTIFICATIONS_KEY = 'ai-company-notifications';
+const SCHEMA_VERSION_KEY = 'ai-company-schema-version';
+const CURRENT_SCHEMA_VERSION = 2; // bump when defaultCompany structure changes
+
+function syncWithDefaults(cached: Company): Company {
+  const defaultAgentMap = new Map(defaultCompany.agents.map(a => [a.id, a]));
+  const cachedIds = new Set(cached.agents.map(a => a.id));
+
+  // Update existing agents' structural fields from defaults
+  let agents = cached.agents
+    .filter(a => defaultAgentMap.has(a.id)) // remove agents deleted from defaults
+    .map(a => {
+      const def = defaultAgentMap.get(a.id)!;
+      return { ...a, parentId: def.parentId, dept: def.dept, title: def.title };
+    });
+
+  // Add new agents from defaults that aren't in cache
+  for (const [id, def] of defaultAgentMap) {
+    if (!cachedIds.has(id)) {
+      agents.push(def);
+    }
+  }
+
+  return { ...cached, agents };
+}
 
 function loadCompanies(): Company[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [defaultCompany];
+    if (!raw) return [defaultCompany];
+
+    let companies: Company[] = JSON.parse(raw);
+    const savedVersion = Number(localStorage.getItem(SCHEMA_VERSION_KEY) || '0');
+
+    if (savedVersion < CURRENT_SCHEMA_VERSION) {
+      companies = companies.map(c =>
+        c.id === defaultCompany.id ? syncWithDefaults(c) : c
+      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(companies));
+      localStorage.setItem(SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA_VERSION));
+    }
+
+    return companies;
   } catch {
     return [defaultCompany];
   }
