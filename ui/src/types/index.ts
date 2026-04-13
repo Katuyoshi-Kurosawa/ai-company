@@ -53,6 +53,16 @@ export interface PrSettings {
   digestEnabled: boolean;          // 日次ダイジェスト生成
 }
 
+// 秘書部長固有設定
+export interface ChiefSecretarySettings {
+  supportTargets: string[];        // サポート対象の幹部ID
+  priorityMode: 'bottleneck' | 'round-robin' | 'urgency';  // 優先度決定方式
+  speedBoostEnabled: boolean;      // タスク加速モード
+  parallelAssistLimit: number;     // 同時サポート上限
+  autoDetectBlockers: boolean;     // ボトルネック自動検出
+  meetingPrepEnabled: boolean;     // 会議準備自動化
+}
+
 // カスタマーサクセス部長固有設定
 export interface CsSettings {
   satisfactionTarget: number;      // 顧客満足度目標（%）
@@ -124,6 +134,7 @@ export interface Agent {
   uxResearchSettings?: UxResearchSettings;
   rdSettings?: RdSettings;
   csSettings?: CsSettings;
+  chiefSecretarySettings?: ChiefSecretarySettings;
 }
 
 export interface EscalationSettings {

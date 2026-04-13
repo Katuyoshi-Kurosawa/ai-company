@@ -14,7 +14,7 @@ interface Props {
 type Tab = 'status' | 'visual' | 'settings' | 'role' | 'badges' | 'compatibility';
 
 export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props) {
-  const hasRoleSettings = !!(agent.secretarySettings || agent.marketingSettings || agent.hrSettings || agent.prSettings || agent.uxResearchSettings || agent.rdSettings || agent.csSettings);
+  const hasRoleSettings = !!(agent.secretarySettings || agent.marketingSettings || agent.hrSettings || agent.prSettings || agent.uxResearchSettings || agent.rdSettings || agent.csSettings || agent.chiefSecretarySettings);
   const [tab, setTab] = useState<Tab>('status');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(agent);
@@ -429,6 +429,49 @@ export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props)
                     </div>
                   </div>
                   <button onClick={() => onUpdate(agent.id, { prSettings: form.prSettings })}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer text-sm font-semibold">保存</button>
+                </>
+              )}
+
+              {agent.chiefSecretarySettings && (
+                <>
+                  <h3 className="text-sm font-bold" style={{ color: S.accent }}>秘書部長設定</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.chiefSecretarySettings?.speedBoostEnabled ?? false}
+                          onChange={e => setForm({ ...form, chiefSecretarySettings: { ...form.chiefSecretarySettings!, speedBoostEnabled: e.target.checked } })} />
+                        <span className="text-sm">タスク加速モード</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.chiefSecretarySettings?.autoDetectBlockers ?? false}
+                          onChange={e => setForm({ ...form, chiefSecretarySettings: { ...form.chiefSecretarySettings!, autoDetectBlockers: e.target.checked } })} />
+                        <span className="text-sm">ボトルネック自動検出</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={form.chiefSecretarySettings?.meetingPrepEnabled ?? false}
+                          onChange={e => setForm({ ...form, chiefSecretarySettings: { ...form.chiefSecretarySettings!, meetingPrepEnabled: e.target.checked } })} />
+                        <span className="text-sm">会議準備自動化</span>
+                      </label>
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>優先度決定方式</label>
+                      <select value={form.chiefSecretarySettings?.priorityMode ?? 'bottleneck'}
+                        onChange={e => setForm({ ...form, chiefSecretarySettings: { ...form.chiefSecretarySettings!, priorityMode: e.target.value as 'bottleneck' | 'round-robin' | 'urgency' } })}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm">
+                        <option value="bottleneck">ボトルネック優先</option>
+                        <option value="round-robin">ラウンドロビン（順番）</option>
+                        <option value="urgency">緊急度優先</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs block mb-1" style={{ color: S.muted }}>同時サポート上限: {form.chiefSecretarySettings?.parallelAssistLimit ?? 3}名</label>
+                      <input type="range" min={1} max={10} value={form.chiefSecretarySettings?.parallelAssistLimit ?? 3}
+                        onChange={e => setForm({ ...form, chiefSecretarySettings: { ...form.chiefSecretarySettings!, parallelAssistLimit: Number(e.target.value) } })}
+                        className="w-full" />
+                    </div>
+                  </div>
+                  <button onClick={() => onUpdate(agent.id, { chiefSecretarySettings: form.chiefSecretarySettings })}
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer text-sm font-semibold">保存</button>
                 </>
               )}
