@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Agent } from './types';
 import { THEMES, BADGES } from './data/constants';
 import { useCompanyStore, calcTeamPower, getTeamRank } from './hooks/useCompanyStore';
 import { useRelay } from './hooks/useRelay';
+import { useExecutionHistory } from './hooks/useExecutionHistory';
 import { OfficeFloor } from './components/OfficeFloor';
 import { OrgTree } from './components/OrgTree';
 import { ScoreBoard } from './components/ScoreBoard';
@@ -37,11 +38,30 @@ export default function App() {
   const store = useCompanyStore();
   const { company, notifications } = store;
   const relay = useRelay();
+  const execHistory = useExecutionHistory();
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [view, setView] = useState<View>('office');
   const [executing, setExecuting] = useState(false);
   const [executionLabel, setExecutionLabel] = useState('');
+  const currentRecordId = useRef<string | null>(null);
+  const prevStatus = useRef(relay.status);
+
+  // 実行完了時に履歴を保存
+  useEffect(() => {
+    const wasRunning = prevStatus.current === 'running' || prevStatus.current === 'connecting';
+    const nowFinished = relay.status === 'done' || relay.status === 'error';
+    if (wasRunning && nowFinished && currentRecordId.current) {
+      execHistory.finishRecord(
+        currentRecordId.current,
+        relay.status as 'done' | 'error',
+        relay.lines,
+        relay.error ?? undefined,
+      );
+      currentRecordId.current = null;
+    }
+    prevStatus.current = relay.status;
+  }, [relay.status, relay.lines, relay.error, execHistory]);
 
   const theme = THEMES[company.theme];
   const teamPower = Math.round(calcTeamPower(company.agents));
@@ -212,7 +232,14 @@ export default function App() {
                 agents={company.agents}
                 theme={theme}
                 relay={relay}
-                onExecute={(label) => { setExecutionLabel(label); setExecuting(true); }}
+                onExecute={(label, type, args) => {
+                  setExecutionLabel(label);
+                  setExecuting(true);
+                  currentRecordId.current = execHistory.startRecord(type, label, args);
+                }}
+                history={execHistory.records}
+                onDeleteHistory={execHistory.deleteRecord}
+                onClearHistory={execHistory.clearAll}
               />
             </div>
           )}
