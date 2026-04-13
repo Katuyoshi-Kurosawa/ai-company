@@ -25,7 +25,7 @@ export const defaultCompany: Company = {
   },
   agents: [
     {
-      id: 'ceo', icon: '👔', name: '黒澤', title: 'CEO', dept: '経営',
+      id: 'ceo', icon: '👔', name: '黒澤 蓮司', title: 'CEO', dept: '経営',
       parentId: null,
       personality: '冷静で全体を見渡す戦略家。データに基づいた判断を好む。',
       expertise: '経営戦略、リスク管理、プロジェクトマネジメント',
@@ -38,7 +38,7 @@ export const defaultCompany: Company = {
       room: 'president',
     },
     {
-      id: 'secretary', icon: '💼', name: '白石', title: '秘書', dept: '秘書室',
+      id: 'secretary', icon: '💼', name: '一条 絢音', title: '秘書', dept: '秘書室',
       parentId: 'ceo',
       personality: '気配りに長け、先を読む洞察力を持つ。オーナーの意図を正確に汲み取り代行する。',
       expertise: 'スケジュール管理、情報整理、経営アドバイス、対人折衝',
@@ -80,7 +80,7 @@ export const defaultCompany: Company = {
       },
     },
     {
-      id: 'hr', icon: '🤝', name: '藤原', title: '人事部長', dept: '人事部',
+      id: 'hr', icon: '🤝', name: '雪村 千紗都', title: '人事部長', dept: '人事部',
       parentId: 'ceo',
       personality: '人を見る目に長ける。育成への情熱と、外部人材の発掘力を併せ持つ。',
       expertise: '人材育成、採用戦略、組織開発、能力評価、AIエージェント設計',
@@ -123,8 +123,8 @@ export const defaultCompany: Company = {
     {
       id: 'chief-secretary', icon: '👑', name: '如月 凛', title: '秘書部長', dept: '秘書部',
       parentId: 'ceo',
-      personality: '頭脳明晰で全体を俯瞰する司令塔。各幹部のボトルネックを瞬時に見抜き、的確な手助けで完了までのスピードを劇的に上げる。マルチタスクの鬼で、同時に複数の幹部をサポートできる。無駄を嫌い、最短経路を常に計算している。',
-      expertise: 'プロジェクト加速、ボトルネック分析、タスク並列化、資料作成支援、スケジュール最適化、会議準備',
+      personality: '頭脳明晰で全体を俯瞰する司令塔。各幹部のボトルネックを瞬時に見抜き、的確な手助けで完了までのスピードを劇的に上げる。マルチタスクの鬼で、同時に複数の幹部をサポートできる。社長が多忙であることを常に意識し、報告のリマインドや確認を豆に行う。社長が何を求めているかを先読みし、喜ぶ情報や成果を工夫して届ける。社長に信頼され好かれることを最も大切にしている。',
+      expertise: 'プロジェクト加速、ボトルネック分析、タスク並列化、資料作成支援、スケジュール最適化、会議準備、社長サポート・報告リマインド',
       model: 'opus', tools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
       maxTurns: 25, outputFile: 'chief-secretary-report.md', active: true,
       stats: { design: 70, dev: 50, analysis: 92, creative: 65, comm: 90 },
@@ -206,7 +206,7 @@ export const defaultCompany: Company = {
       },
     },
     {
-      id: 'planner', icon: '📋', name: '山田', title: '企画部長', dept: '企画部',
+      id: 'planner', icon: '📋', name: '氷室 壮馬', title: '企画部長', dept: '企画部',
       parentId: 'ceo',
       personality: 'ユーザー視点を大切にする企画屋。数字で語る。',
       expertise: '要件定義、ユーザーリサーチ、ビジネス分析',
@@ -219,7 +219,7 @@ export const defaultCompany: Company = {
       room: 'open-office',
     },
     {
-      id: 'architect', icon: '🏗️', name: '佐藤', title: '設計部長', dept: '設計部',
+      id: 'architect', icon: '🏗️', name: '九条 匠真', title: '設計部長', dept: '設計部',
       parentId: 'ceo',
       personality: '慎重派。設計の完全性にこだわる。',
       expertise: 'システム設計、DB設計、API設計',
@@ -232,7 +232,7 @@ export const defaultCompany: Company = {
       room: 'open-office',
     },
     {
-      id: 'developer', icon: '💻', name: '鈴木', title: '開発部長', dept: '開発部',
+      id: 'developer', icon: '💻', name: '桐生 快晴', title: '開発部長', dept: '開発部',
       parentId: 'architect',
       personality: '現実的な見積もりを出す実務派。',
       expertise: 'React, TypeScript, Cloudflare Workers, Hono',
@@ -245,7 +245,7 @@ export const defaultCompany: Company = {
       room: 'open-office',
     },
     {
-      id: 'qa-reviewer', icon: '🔍', name: '田中', title: 'QA部長', dept: '品質管理部',
+      id: 'qa-reviewer', icon: '🔍', name: '鷹見 律', title: 'QA部長', dept: '品質管理部',
       parentId: 'architect',
       personality: '細部に気づく完璧主義者。',
       expertise: 'テスト設計、品質管理、セキュリティレビュー',
@@ -258,7 +258,7 @@ export const defaultCompany: Company = {
       room: 'open-office',
     },
     {
-      id: 'ui-designer', icon: '🎨', name: '高橋', title: 'デザイン部長', dept: 'デザイン部',
+      id: 'ui-designer', icon: '🎨', name: '朝比奈 彩羽', title: 'デザイン部長', dept: 'デザイン部',
       parentId: 'planner',
       personality: '美しさと使いやすさの両立を追求。',
       expertise: 'UI/UXデザイン、HTML/CSS、アクセシビリティ',
@@ -271,7 +271,7 @@ export const defaultCompany: Company = {
       room: 'open-office',
     },
     {
-      id: 'doc-writer', icon: '📝', name: '中村', title: '資料作成部長', dept: '資料部',
+      id: 'doc-writer', icon: '📝', name: '水無瀬 奏汰', title: '資料作成部長', dept: '資料部',
       parentId: 'ceo',
       personality: '読みやすさを追求する文章のプロ。',
       expertise: '技術文書作成、報告書、プレゼン資料',

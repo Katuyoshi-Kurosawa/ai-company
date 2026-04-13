@@ -25,7 +25,7 @@
     {
       "id": "ceo",
       "icon": "👔",
-      "name": "黒澤",
+      "name": "黒澤 蓮司",
       "title": "CEO",
       "dept": "経営",
       "parentId": null,
@@ -47,7 +47,7 @@
     {
       "id": "planner",
       "icon": "📋",
-      "name": "山田",
+      "name": "氷室 壮馬",
       "title": "企画部長",
       "dept": "企画部",
       "parentId": "ceo",
@@ -69,7 +69,7 @@
     {
       "id": "architect",
       "icon": "🏗️",
-      "name": "佐藤",
+      "name": "九条 匠真",
       "title": "設計部長",
       "dept": "設計部",
       "parentId": "ceo",
@@ -91,7 +91,7 @@
     {
       "id": "developer",
       "icon": "💻",
-      "name": "鈴木",
+      "name": "桐生 快晴",
       "title": "開発部長",
       "dept": "開発部",
       "parentId": "architect",
@@ -113,7 +113,7 @@
     {
       "id": "qa-reviewer",
       "icon": "🔍",
-      "name": "田中",
+      "name": "鷹見 律",
       "title": "QA部長",
       "dept": "品質管理部",
       "parentId": "architect",
@@ -135,7 +135,7 @@
     {
       "id": "ui-designer",
       "icon": "🎨",
-      "name": "高橋",
+      "name": "朝比奈 彩羽",
       "title": "デザイン部長",
       "dept": "デザイン部",
       "parentId": "planner",
@@ -157,7 +157,7 @@
     {
       "id": "doc-writer",
       "icon": "📝",
-      "name": "中村",
+      "name": "水無瀬 奏汰",
       "title": "資料作成部長",
       "dept": "資料部",
       "parentId": "ceo",
@@ -179,7 +179,7 @@
     {
       "id": "secretary",
       "icon": "🤝",
-      "name": "白石",
+      "name": "一条 絢音",
       "title": "CEO秘書",
       "dept": "経営",
       "parentId": "ceo",
@@ -223,7 +223,7 @@
     {
       "id": "hr",
       "icon": "👥",
-      "name": "藤原",
+      "name": "雪村 千紗都",
       "title": "人事部長",
       "dept": "人事部",
       "parentId": "ceo",
@@ -271,7 +271,7 @@
       "title": "秘書部長",
       "dept": "秘書部",
       "parentId": "ceo",
-      "personality": "頭脳明晰で全体を俯瞰する司令塔。各幹部のボトルネックを瞬時に見抜き、完了スピードを劇的に上げる。",
+      "personality": "頭脳明晰で全体を俯瞰する司令塔。各幹部のボトルネックを瞬時に見抜き、完了スピードを劇的に上げる。社長が多忙であることを常に意識し、報告リマインドや再確認を豆に行い、社長が喜ぶ情報や成果を工夫して届ける。",
       "expertise": "プロジェクト加速、ボトルネック分析、タスク並列化、資料作成支援、スケジュール最適化",
       "model": "opus",
       "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
