@@ -11,6 +11,47 @@ export interface ConsultationSettings {
   threshold: 'low' | 'medium' | 'high';
 }
 
+export type Gender = 'male' | 'female';
+
+export interface AgentVisual {
+  gender: Gender;
+  hairStyle: string;
+  hairColor: string;
+  suitColor: string;
+  accessory: string;
+}
+
+export type RoomId = 'president' | 'executive' | 'meeting-a' | 'meeting-b' | 'break' | 'open-office';
+
+// 秘書固有設定
+export interface SecretarySettings {
+  monitorTarget: string;          // 監視対象（通常はCEO）
+  reportFrequency: 'realtime' | 'hourly' | 'daily';
+  proxyAuthority: boolean;        // ユーザー代理の指示出し権限
+  adviceLevel: 'passive' | 'active' | 'aggressive';
+}
+
+// マーケティング部長固有設定
+export interface MarketingSettings {
+  autoGatherEnabled: boolean;     // 待機中の自動情報収集
+  gatherTopics: string[];         // 収集対象トピック
+  gatherInterval: number;         // 収集間隔（分）
+  dbPath: string;                 // データベース保存先
+  webSearchEnabled: boolean;
+  rssFeeds: string[];
+  networkingMode: boolean;        // 人脈開拓モード
+  trendAnalysis: boolean;         // トレンド分析
+}
+
+// 人事部長固有設定
+export interface HrSettings {
+  trainingEnabled: boolean;       // 社員教育モード
+  trainingFocus: string[];        // 教育重点分野
+  scoutEnabled: boolean;          // 外部スカウトモード
+  scoutCriteria: string;          // スカウト基準
+  maxRecruits: number;            // 最大採用数
+}
+
 export interface Agent {
   id: string;
   icon: string;
@@ -32,6 +73,12 @@ export interface Agent {
   badges: string[];
   secretBadges: string[];
   consultationSettings: ConsultationSettings;
+  visual: AgentVisual;
+  room: RoomId;
+  // 役職固有設定（該当する場合のみ）
+  secretarySettings?: SecretarySettings;
+  marketingSettings?: MarketingSettings;
+  hrSettings?: HrSettings;
 }
 
 export interface EscalationSettings {
