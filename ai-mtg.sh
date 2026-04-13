@@ -49,15 +49,15 @@ notify_slack() {
 
 select_participants() {
   case "$MTG_TYPE" in
-    kickoff)      echo "ceo planner architect developer qa-reviewer ui-designer doc-writer" ;;
-    req-review)   echo "ceo planner architect ui-designer" ;;
-    design-review) echo "architect developer ui-designer qa-reviewer" ;;
-    ui-review)    echo "ui-designer developer planner" ;;
-    code-review)  echo "developer qa-reviewer architect" ;;
-    final-review) echo "ceo planner architect developer qa-reviewer ui-designer doc-writer" ;;
-    brainstorm)   echo "ceo planner architect developer qa-reviewer ui-designer doc-writer" ;;
-    custom)       echo "ceo planner architect developer qa-reviewer ui-designer doc-writer" ;;
-    *)            echo "ceo planner architect" ;;
+    kickoff)       echo "ceo chief-secretary planner architect developer qa-reviewer ui-designer doc-writer marketing rd ux-research" ;;
+    req-review)    echo "ceo chief-secretary planner architect ui-designer marketing ux-research rd" ;;
+    design-review) echo "architect developer ui-designer qa-reviewer chief-secretary rd" ;;
+    ui-review)     echo "ui-designer developer planner ux-research chief-secretary" ;;
+    code-review)   echo "developer qa-reviewer architect chief-secretary" ;;
+    final-review)  echo "ceo chief-secretary secretary planner architect developer qa-reviewer ui-designer doc-writer marketing hr pr cs rd ux-research" ;;
+    brainstorm)    echo "ceo rd marketing planner architect developer ux-research chief-secretary" ;;
+    custom)        echo "ceo chief-secretary planner architect developer qa-reviewer ui-designer doc-writer" ;;
+    *)             echo "ceo chief-secretary planner architect" ;;
   esac
 }
 
@@ -67,7 +67,19 @@ select_chair() {
   local agenda_lower
   agenda_lower=$(echo "$AGENDA" | tr '[:upper:]' '[:lower:]')
 
-  if echo "$agenda_lower" | grep -qE "要件|機能|ユーザー"; then
+  if echo "$agenda_lower" | grep -qE "市場|マーケ|競合|トレンド|sns"; then
+    echo "marketing"
+  elif echo "$agenda_lower" | grep -qE "アイデア|イノベーション|新規|ブレスト"; then
+    echo "rd"
+  elif echo "$agenda_lower" | grep -qE "ユーザビリティ|ペルソナ|リサーチ|調査"; then
+    echo "ux-research"
+  elif echo "$agenda_lower" | grep -qE "採用|育成|人事|スカウト|教育"; then
+    echo "hr"
+  elif echo "$agenda_lower" | grep -qE "顧客|サポート|cs|満足度|オンボーディング"; then
+    echo "cs"
+  elif echo "$agenda_lower" | grep -qE "広報|通知|pr|ニュース"; then
+    echo "pr"
+  elif echo "$agenda_lower" | grep -qE "要件|機能|ユーザー"; then
     echo "planner"
   elif echo "$agenda_lower" | grep -qE "設計|db|api|アーキ"; then
     echo "architect"
