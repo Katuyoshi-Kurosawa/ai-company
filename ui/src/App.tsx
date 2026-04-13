@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Agent } from './types';
 import { THEMES, BADGES } from './data/constants';
 import { useCompanyStore, calcTeamPower, getTeamRank } from './hooks/useCompanyStore';
+import { useRelay } from './hooks/useRelay';
 import { OfficeFloor } from './components/OfficeFloor';
 import { OrgTree } from './components/OrgTree';
 import { ScoreBoard } from './components/ScoreBoard';
@@ -12,10 +13,12 @@ import { CompanyManager } from './components/CompanyManager';
 import { RadarChart } from './components/RadarChart';
 import { MtgScreen } from './components/MtgScreen';
 import { EscalationScreen } from './components/EscalationScreen';
+import { CommandCenter } from './components/CommandCenter';
+import { ExecutionOverlay } from './components/ExecutionOverlay';
 
 declare const __BUILD_TIME__: string;
 
-type View = 'office' | 'org' | 'mtg' | 'escalation' | 'settings';
+type View = 'office' | 'org' | 'mtg' | 'escalation' | 'command' | 'settings';
 
 function getBadgeIcon(badgeId: string): string {
   return BADGES.find(b => b.id === badgeId)?.icon ?? '🏅';
@@ -24,6 +27,7 @@ function getBadgeIcon(badgeId: string): string {
 const NAV_ITEMS: { id: View; label: string; icon: string }[] = [
   { id: 'office', label: 'オフィス', icon: '🏢' },
   { id: 'org', label: '組織図', icon: '📊' },
+  { id: 'command', label: '指示室', icon: '🚀' },
   { id: 'mtg', label: '会議室', icon: '💬' },
   { id: 'escalation', label: '報告', icon: '📨' },
   { id: 'settings', label: '管理', icon: '⚙️' },
@@ -32,9 +36,12 @@ const NAV_ITEMS: { id: View; label: string; icon: string }[] = [
 export default function App() {
   const store = useCompanyStore();
   const { company, notifications } = store;
+  const relay = useRelay();
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [view, setView] = useState<View>('office');
+  const [executing, setExecuting] = useState(false);
+  const [executionLabel, setExecutionLabel] = useState('');
 
   const theme = THEMES[company.theme];
   const teamPower = Math.round(calcTeamPower(company.agents));
@@ -97,6 +104,9 @@ export default function App() {
               }`}>
             <span className="text-base">{item.icon}</span>
             {item.label}
+            {item.id === 'command' && (
+              <span className={`w-2 h-2 rounded-full ${relay.connected ? 'bg-green-400' : 'bg-red-400'}`} />
+            )}
           </button>
         ))}
       </nav>
@@ -189,6 +199,17 @@ export default function App() {
             </div>
           )}
 
+          {view === 'command' && (
+            <div className="p-5" style={{ minHeight: 'calc(100vh - 120px)' }}>
+              <CommandCenter
+                agents={company.agents}
+                theme={theme}
+                relay={relay}
+                onExecute={(label) => { setExecutionLabel(label); setExecuting(true); }}
+              />
+            </div>
+          )}
+
           {view === 'escalation' && (
             <div className="p-5" style={{ minHeight: 'calc(100vh - 120px)' }}>
               <EscalationScreen agents={company.agents} theme={theme} />
@@ -236,6 +257,19 @@ export default function App() {
             store.updateAgent(id, updates);
             setSelectedAgent(prev => prev ? { ...prev, ...updates } : null);
           }}
+        />
+      )}
+
+      {/* Execution Overlay */}
+      {executing && (
+        <ExecutionOverlay
+          agents={company.agents}
+          status={relay.status}
+          lines={relay.lines}
+          elapsed={relay.elapsed}
+          error={relay.error}
+          commandLabel={executionLabel}
+          onClose={() => { setExecuting(false); relay.reset(); }}
         />
       )}
     </div>
