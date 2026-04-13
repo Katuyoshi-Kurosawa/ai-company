@@ -57,7 +57,7 @@ export const defaultCompany: Company = {
       },
     },
     {
-      id: 'marketing', icon: '🍸', name: '星野 あゆみ', title: 'マーケティング部長', dept: 'マーケティング部',
+      id: 'marketing', icon: '🍸', name: '星野 きらら', title: 'マーケティング部長', dept: 'マーケティング部',
       parentId: 'ceo',
       personality: '華やかで社交的。人の心を掴む天才的なコミュニケーション力を持つ元キャバクラ嬢。場の空気を読み、相手の本音を引き出す。情報収集と人脈作りに長ける。',
       expertise: '市場調査、トレンド分析、人脈開拓、顧客心理分析、ブランディング、営業戦略',
