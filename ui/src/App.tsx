@@ -14,7 +14,7 @@ import { RadarChart } from './components/RadarChart';
 import { MtgScreen } from './components/MtgScreen';
 import { EscalationScreen } from './components/EscalationScreen';
 import { CommandCenter } from './components/CommandCenter';
-import { ExecutionOverlay } from './components/ExecutionOverlay';
+import { ExecutionPanel, ExecutionIndicator } from './components/ExecutionPanel';
 
 declare const __BUILD_TIME__: string;
 
@@ -52,7 +52,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: theme.bg, color: theme.text }}>
-      {/* Header — クリーンなコーポレートヘッダー */}
+      {/* Header */}
       <header className="border-b px-6 py-3 flex items-center justify-between"
         style={{ borderColor: theme.border, background: theme.surface }}>
         <div className="flex items-center gap-4">
@@ -70,7 +70,16 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4">
+          {/* Execution indicator in header */}
+          {executing && (
+            <ExecutionIndicator
+              status={relay.status}
+              elapsed={relay.elapsed}
+              onClick={() => setView('command')}
+            />
+          )}
+
           <div className="flex items-center gap-6 text-sm">
             <div className="text-center">
               <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: theme.muted }}>Power</div>
@@ -105,7 +114,11 @@ export default function App() {
             <span className="text-base">{item.icon}</span>
             {item.label}
             {item.id === 'command' && (
-              <span className={`w-2 h-2 rounded-full ${relay.connected ? 'bg-green-400' : 'bg-red-400'}`} />
+              <span className={`w-2 h-2 rounded-full ${
+                executing && relay.status === 'running' ? 'bg-indigo-400 animate-pulse'
+                : relay.connected ? 'bg-green-400'
+                : 'bg-red-400'
+              }`} />
             )}
           </button>
         ))}
@@ -113,16 +126,12 @@ export default function App() {
 
       {/* Main */}
       <div className="flex-1 flex">
-        {/* Content area */}
-        <main className="flex-1 overflow-auto">
+        <main className={`flex-1 overflow-auto ${executing ? 'pb-32' : ''}`}>
           {view === 'office' && (
             <div className="flex gap-5 p-5" style={{ minHeight: 'calc(100vh - 120px)' }}>
-              {/* Left: ScoreBoard */}
               <aside className="w-60 shrink-0">
                 <ScoreBoard agents={company.agents} onSelect={setSelectedAgent} />
               </aside>
-
-              {/* Center: Office Floor Map */}
               <div className="flex-1">
                 <OfficeFloor
                   agents={company.agents}
@@ -130,8 +139,6 @@ export default function App() {
                   selectedId={selectedAgent?.id}
                 />
               </div>
-
-              {/* Right: Agent Preview */}
               <aside className="w-72 shrink-0">
                 {selectedAgent ? (
                   <div className="rounded-xl p-5 space-y-4 sticky top-5"
@@ -233,7 +240,7 @@ export default function App() {
       </div>
 
       {/* Bottom bar */}
-      <footer className="border-t" style={{ borderColor: theme.border, background: theme.surface }}>
+      <footer className={`border-t ${executing ? 'hidden' : ''}`} style={{ borderColor: theme.border, background: theme.surface }}>
         <div className="px-6 py-2 flex items-center justify-between">
           <div className="flex gap-2">
             {company.agents.map(a => (
@@ -260,9 +267,9 @@ export default function App() {
         />
       )}
 
-      {/* Execution Overlay */}
+      {/* Execution Panel (bottom bar) */}
       {executing && (
-        <ExecutionOverlay
+        <ExecutionPanel
           agents={company.agents}
           status={relay.status}
           lines={relay.lines}
