@@ -3,6 +3,7 @@ import type { Agent } from '../types';
 import { LEVELS, BADGES, STAT_LABELS, STAT_KEYS, EMOJI_OPTIONS, ROOMS, HAIR_STYLES, HAIR_COLORS, SUIT_COLORS, ACCESSORIES } from '../data/constants';
 import { RadarChart } from './RadarChart';
 import { calcCompatibility } from '../hooks/useCompanyStore';
+import { PixelCharacter } from './PixelCharacter';
 
 interface Props {
   agent: Agent;
@@ -14,7 +15,7 @@ interface Props {
 type Tab = 'status' | 'visual' | 'settings' | 'role' | 'badges' | 'compatibility';
 
 export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props) {
-  const hasRoleSettings = !!(agent.secretarySettings || agent.marketingSettings || agent.hrSettings || agent.prSettings || agent.uxResearchSettings || agent.rdSettings || agent.csSettings || agent.chiefSecretarySettings);
+  const hasRoleSettings = !!(agent.secretarySettings || agent.marketingSettings || agent.hrSettings || agent.rdSettings || agent.csSettings || agent.chiefSecretarySettings);
   const [tab, setTab] = useState<Tab>('status');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(agent);
@@ -46,9 +47,9 @@ export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props)
 
         {/* Header */}
         <div className="flex items-center gap-4 p-6 border-b border-[#262a38]">
-          <div className="w-16 h-16 rounded-xl flex items-center justify-center text-4xl"
+          <div className="w-16 h-16 rounded-xl flex items-center justify-center"
             style={{ background: `${S.accent}10` }}>
-            {agent.icon}
+            <PixelCharacter visual={agent.visual} size="md" active={agent.active} />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -378,61 +379,6 @@ export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props)
                 </>
               )}
 
-              {agent.prSettings && (
-                <>
-                  <h3 className="text-sm font-bold" style={{ color: S.accent }}>広報部長設定</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.prSettings?.internalNewsEnabled ?? false}
-                          onChange={e => setForm({ ...form, prSettings: { ...form.prSettings!, internalNewsEnabled: e.target.checked } })} />
-                        <span className="text-sm">社内ニュース自動配信</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.prSettings?.evolutionMode ?? false}
-                          onChange={e => setForm({ ...form, prSettings: { ...form.prSettings!, evolutionMode: e.target.checked } })} />
-                        <span className="text-sm">通知品質の自動進化</span>
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.prSettings?.digestEnabled ?? false}
-                          onChange={e => setForm({ ...form, prSettings: { ...form.prSettings!, digestEnabled: e.target.checked } })} />
-                        <span className="text-sm">日次ダイジェスト生成</span>
-                      </label>
-                    </div>
-                    <div>
-                      <label className="text-xs block mb-1" style={{ color: S.muted }}>オーナーへの報告頻度</label>
-                      <select value={form.prSettings?.reportToOwner ?? 'realtime'}
-                        onChange={e => setForm({ ...form, prSettings: { ...form.prSettings!, reportToOwner: e.target.value as 'realtime' | 'hourly' | 'daily' } })}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm">
-                        <option value="realtime">リアルタイム</option>
-                        <option value="hourly">1時間ごと</option>
-                        <option value="daily">1日1回</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs block mb-1" style={{ color: S.muted }}>通知フォーマット</label>
-                      <select value={form.prSettings?.notifyFormat ?? 'visual'}
-                        onChange={e => setForm({ ...form, prSettings: { ...form.prSettings!, notifyFormat: e.target.value as 'summary' | 'detailed' | 'visual' } })}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm">
-                        <option value="summary">サマリー</option>
-                        <option value="detailed">詳細</option>
-                        <option value="visual">ビジュアル</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs block mb-1" style={{ color: S.muted }}>追跡トピック（カンマ区切り）</label>
-                      <textarea value={form.prSettings?.trackTopics?.join(', ') ?? ''}
-                        onChange={e => setForm({ ...form, prSettings: { ...form.prSettings!, trackTopics: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm h-16" />
-                    </div>
-                  </div>
-                  <button onClick={() => onUpdate(agent.id, { prSettings: form.prSettings })}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer text-sm font-semibold">保存</button>
-                </>
-              )}
-
               {agent.chiefSecretarySettings && (
                 <>
                   <h3 className="text-sm font-bold" style={{ color: S.accent }}>秘書部長設定</h3>
@@ -577,53 +523,6 @@ export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props)
                     </div>
                   </div>
                   <button onClick={() => onUpdate(agent.id, { rdSettings: form.rdSettings })}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer text-sm font-semibold">保存</button>
-                </>
-              )}
-
-              {agent.uxResearchSettings && (
-                <>
-                  <h3 className="text-sm font-bold" style={{ color: S.accent }}>UXリサーチ部長設定</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.uxResearchSettings?.userTestingEnabled ?? false}
-                          onChange={e => setForm({ ...form, uxResearchSettings: { ...form.uxResearchSettings!, userTestingEnabled: e.target.checked } })} />
-                        <span className="text-sm">ユーザーテスト実施</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.uxResearchSettings?.competitorUxTracking ?? false}
-                          onChange={e => setForm({ ...form, uxResearchSettings: { ...form.uxResearchSettings!, competitorUxTracking: e.target.checked } })} />
-                        <span className="text-sm">競合UX追跡</span>
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={form.uxResearchSettings?.accessibilityAudit ?? false}
-                          onChange={e => setForm({ ...form, uxResearchSettings: { ...form.uxResearchSettings!, accessibilityAudit: e.target.checked } })} />
-                        <span className="text-sm">アクセシビリティ監査</span>
-                      </label>
-                    </div>
-                    <div>
-                      <label className="text-xs block mb-1" style={{ color: S.muted }}>ペルソナ数: {form.uxResearchSettings?.personaCount ?? 5}</label>
-                      <input type="range" min={1} max={20} value={form.uxResearchSettings?.personaCount ?? 5}
-                        onChange={e => setForm({ ...form, uxResearchSettings: { ...form.uxResearchSettings!, personaCount: Number(e.target.value) } })}
-                        className="w-full" />
-                    </div>
-                    <div>
-                      <label className="text-xs block mb-1" style={{ color: S.muted }}>調査手法（カンマ区切り）</label>
-                      <textarea value={form.uxResearchSettings?.researchMethods?.join(', ') ?? ''}
-                        onChange={e => setForm({ ...form, uxResearchSettings: { ...form.uxResearchSettings!, researchMethods: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm h-16" />
-                    </div>
-                    <div>
-                      <label className="text-xs block mb-1" style={{ color: S.muted }}>インサイト保存先</label>
-                      <input value={form.uxResearchSettings?.insightDb ?? ''}
-                        onChange={e => setForm({ ...form, uxResearchSettings: { ...form.uxResearchSettings!, insightDb: e.target.value } })}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2 text-sm" />
-                    </div>
-                  </div>
-                  <button onClick={() => onUpdate(agent.id, { uxResearchSettings: form.uxResearchSettings })}
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer text-sm font-semibold">保存</button>
                 </>
               )}

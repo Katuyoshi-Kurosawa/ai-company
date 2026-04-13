@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Agent, Consultation } from '../types';
+import { PixelCharacter } from './PixelCharacter';
 
 interface Props {
   agents: Agent[];
@@ -86,7 +87,7 @@ export function EscalationScreen({ agents, theme }: Props) {
                   ${isPulseFrom ? 'bg-yellow-500/20 ring-1 ring-yellow-400 animate-pulse' : ''}
                   ${isPulseTo ? 'bg-indigo-500/20 ring-1 ring-indigo-400 animate-pulse' : ''}
                   ${!isPulseFrom && !isPulseTo ? 'bg-white/5' : ''}`}>
-                <span className="text-xl">{a.icon}</span>
+                <PixelCharacter visual={a.visual} size="sm" active={a.active} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold truncate">{a.name} {a.title}</div>
                   <div className="text-[10px]" style={{ color: theme.muted }}>{a.dept}</div>
@@ -160,9 +161,9 @@ export function EscalationScreen({ agents, theme }: Props) {
                     <span className={`text-xs font-bold ${status.color}`}>{status.label}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs" style={{ color: theme.muted }}>
-                    <span>{fromAgent?.icon} {fromAgent?.name}</span>
+                    <span className="flex items-center gap-1">{fromAgent && <PixelCharacter visual={fromAgent.visual} size="sm" />} {fromAgent?.name}</span>
                     <span>→</span>
-                    <span>{toAgent?.icon} {toAgent?.name}</span>
+                    <span className="flex items-center gap-1">{toAgent && <PixelCharacter visual={toAgent.visual} size="sm" />} {toAgent?.name}</span>
                     <span className="ml-auto">{new Date(c.timestamp).toLocaleString('ja-JP')}</span>
                   </div>
                 </button>
@@ -187,13 +188,13 @@ export function EscalationScreen({ agents, theme }: Props) {
               <div className="text-center py-4">
                 <div className="flex items-center justify-center gap-4">
                   <div className="text-center">
-                    <span className="text-3xl block">{fromAgent?.icon}</span>
-                    <span className="text-xs">{fromAgent?.name}</span>
+                    {fromAgent && <PixelCharacter visual={fromAgent.visual} size="md" active={true} />}
+                    <span className="text-xs block mt-1">{fromAgent?.name}</span>
                   </div>
                   <div className="text-2xl animate-pulse">→</div>
                   <div className="text-center">
-                    <span className="text-3xl block">{toAgent?.icon}</span>
-                    <span className="text-xs">{toAgent?.name}</span>
+                    {toAgent && <PixelCharacter visual={toAgent.visual} size="md" active={true} />}
+                    <span className="text-xs block mt-1">{toAgent?.name}</span>
                   </div>
                 </div>
               </div>

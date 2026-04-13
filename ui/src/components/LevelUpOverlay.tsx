@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { LEVELS } from '../data/constants';
+import type { AgentVisual } from '../types';
+import { PixelCharacter } from './PixelCharacter';
 
 interface Props {
-  agentIcon: string;
+  agentVisual: AgentVisual;
   agentName: string;
   newLevel: number;
   onDone: () => void;
 }
 
-export function LevelUpOverlay({ agentIcon, agentName, newLevel, onDone }: Props) {
+export function LevelUpOverlay({ agentVisual, agentName, newLevel, onDone }: Props) {
   const [phase, setPhase] = useState<'flash' | 'show' | 'fadeout'>('flash');
   const levelInfo = LEVELS.find(l => l.level === newLevel) ?? LEVELS[0];
 
@@ -30,7 +32,9 @@ export function LevelUpOverlay({ agentIcon, agentName, newLevel, onDone }: Props
       {/* Content */}
       <div className={`text-center transition-all duration-500
         ${phase === 'flash' ? 'scale-50 opacity-0' : 'scale-100 opacity-100'}`}>
-        <div className="text-7xl mb-4 animate-bounce">{agentIcon}</div>
+        <div className="mb-4 animate-bounce">
+          <PixelCharacter visual={agentVisual} size="lg" active={true} />
+        </div>
         <div className="text-4xl font-black text-yellow-400 tracking-widest mb-2"
           style={{ textShadow: '0 0 40px rgba(251, 191, 36, 0.6)' }}>
           LEVEL UP!

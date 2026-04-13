@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Agent } from '../types';
+import { PixelCharacter } from './PixelCharacter';
 
 interface MtgConfig {
   type: string;
@@ -197,7 +198,7 @@ export function MtgScreen({ agents, theme }: Props) {
                   onChange={() => toggleParticipant(a.id)}
                   className="rounded"
                 />
-                <span>{a.icon}</span>
+                <PixelCharacter visual={a.visual} size="sm" active={a.active} />
                 <span className="text-sm">{a.name} {a.title}</span>
                 {config.chair === a.id && (
                   <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded ml-auto">議長</span>
@@ -306,7 +307,7 @@ export function MtgScreen({ agents, theme }: Props) {
                   {MTG_TYPES.find(t => t.id === config.type)?.label} — {config.agenda}
                 </h3>
                 <p className="text-xs" style={{ color: theme.muted }}>
-                  議長: {getAgent(config.chair)?.icon} {getAgent(config.chair)?.name} |
+                  議長: {getAgent(config.chair)?.name} |
                   参加者: {config.participants.length}名 |
                   ラウンド: {config.rounds}
                 </p>
@@ -338,7 +339,9 @@ export function MtgScreen({ agents, theme }: Props) {
                       </div>
                     )}
                     <div className="flex gap-3 animate-[slideIn_0.3s_ease-out]">
-                      <span className="text-2xl shrink-0 mt-0.5">{agent.icon}</span>
+                      <div className="shrink-0 mt-0.5">
+                        <PixelCharacter visual={agent.visual} size="sm" active={agent.active} />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline gap-2">
                           <span className="font-bold text-sm">{agent.name}{agent.title}</span>

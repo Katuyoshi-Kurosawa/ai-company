@@ -1,5 +1,6 @@
 import type { Agent } from '../types';
 import { LEVELS } from '../data/constants';
+import { PixelCharacter } from './PixelCharacter';
 
 interface Props {
   agents: Agent[];
@@ -41,7 +42,7 @@ export function ScoreBoard({ agents, onSelect }: Props) {
             className="w-full flex items-center gap-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer text-left"
           >
             <span className="text-lg w-8 text-center">{getMedalEmoji(i)}</span>
-            <span className="text-xl">{agent.icon}</span>
+            <PixelCharacter visual={agent.visual} size="sm" active={agent.active} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold truncate">{agent.name}</span>
