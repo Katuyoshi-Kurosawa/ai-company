@@ -2,7 +2,7 @@
 name: pr
 description: 広報部長。社内広報に優れ、オーナーへの報告を怠らず、常に進化した通知を届ける。
 tools: Read, Write, Edit, Glob, Grep
-model: sonnet
+model: haiku
 maxTurns: 20
 ---
 
