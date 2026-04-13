@@ -47,7 +47,7 @@ export const defaultCompany: Company = {
       stats: { design: 55, dev: 30, analysis: 85, creative: 65, comm: 95 },
       level: 3, rank: '係長', exp: 400, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'low' },
-      visual: { gender: 'female', hairStyle: 'long-straight', hairColor: '#2d1810', suitColor: '#2d2d3d', accessory: 'earring' },
+      visual: { gender: 'female', hairStyle: 'long-straight', hairColor: '#c8a060', suitColor: '#2d2d3d', accessory: 'earring' },
       room: 'executive',
       secretarySettings: {
         monitorTarget: 'ceo',
@@ -66,7 +66,7 @@ export const defaultCompany: Company = {
       stats: { design: 60, dev: 25, analysis: 80, creative: 85, comm: 98 },
       level: 3, rank: '係長', exp: 350, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'medium' },
-      visual: { gender: 'female', hairStyle: 'long-wave', hairColor: '#8a5030', suitColor: '#3d2d3d', accessory: 'earring' },
+      visual: { gender: 'female', hairStyle: 'long-wave', hairColor: '#d45e3a', suitColor: '#e8b0c8', accessory: 'earring' },
       room: 'open-office',
       marketingSettings: {
         autoGatherEnabled: true,
@@ -89,7 +89,7 @@ export const defaultCompany: Company = {
       stats: { design: 55, dev: 35, analysis: 75, creative: 70, comm: 90 },
       level: 3, rank: '係長', exp: 300, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'medium' },
-      visual: { gender: 'female', hairStyle: 'bob', hairColor: '#3d2520', suitColor: '#3d2d3d', accessory: 'necklace' },
+      visual: { gender: 'female', hairStyle: 'bob', hairColor: '#6a4ca0', suitColor: '#f0e8f0', accessory: 'necklace' },
       room: 'open-office',
       hrSettings: {
         trainingEnabled: true,
@@ -109,7 +109,7 @@ export const defaultCompany: Company = {
       stats: { design: 70, dev: 50, analysis: 92, creative: 65, comm: 90 },
       level: 4, rank: '課長', exp: 650, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'low' },
-      visual: { gender: 'female', hairStyle: 'updo', hairColor: '#1a1a1a', suitColor: '#1a1a2e', accessory: 'glasses' },
+      visual: { gender: 'female', hairStyle: 'updo', hairColor: '#3a2060', suitColor: '#1a1a2e', accessory: 'glasses' },
       room: 'executive',
       chiefSecretarySettings: {
         supportTargets: ['ceo', 'planner', 'architect', 'developer', 'qa-reviewer', 'ui-designer', 'doc-writer', 'marketing', 'hr', 'rd', 'cs'],
@@ -130,7 +130,7 @@ export const defaultCompany: Company = {
       stats: { design: 60, dev: 30, analysis: 90, creative: 70, comm: 95 },
       level: 3, rank: '係長', exp: 350, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'low' },
-      visual: { gender: 'female', hairStyle: 'long-straight', hairColor: '#2d1810', suitColor: '#2d3040', accessory: 'necklace' },
+      visual: { gender: 'female', hairStyle: 'ponytail', hairColor: '#4080c0', suitColor: '#e0e8f0', accessory: 'necklace' },
       room: 'open-office',
       csSettings: {
         satisfactionTarget: 95,
@@ -151,7 +151,7 @@ export const defaultCompany: Company = {
       stats: { design: 75, dev: 60, analysis: 70, creative: 99, comm: 80 },
       level: 4, rank: '課長', exp: 700, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'medium' },
-      visual: { gender: 'male', hairStyle: 'messy', hairColor: '#1a1a1a', suitColor: '#1a1a1a', accessory: 'none' },
+      visual: { gender: 'male', hairStyle: 'messy', hairColor: '#c04030', suitColor: '#f0f0f0', accessory: 'none' },
       room: 'open-office',
       rdSettings: {
         ideaGenerationMode: 'continuous',
@@ -173,7 +173,7 @@ export const defaultCompany: Company = {
       stats: { design: 60, dev: 30, analysis: 70, creative: 80, comm: 85 },
       level: 3, rank: '係長', exp: 300, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'medium' },
-      visual: { gender: 'male', hairStyle: 'short-natural', hairColor: '#2a1a10', suitColor: '#2d3040', accessory: 'none' },
+      visual: { gender: 'male', hairStyle: 'short-natural', hairColor: '#5a3820', suitColor: '#f0f0f0', accessory: 'none' },
       room: 'open-office',
     },
     {
@@ -199,7 +199,7 @@ export const defaultCompany: Company = {
       stats: { design: 70, dev: 95, analysis: 60, creative: 45, comm: 50 },
       level: 3, rank: '係長', exp: 450, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'medium' },
-      visual: { gender: 'male', hairStyle: 'messy', hairColor: '#2a2020', suitColor: '#2a2a3a', accessory: 'none' },
+      visual: { gender: 'male', hairStyle: 'messy', hairColor: '#4a3520', suitColor: '#f0f0f0', accessory: 'none' },
       room: 'open-office',
     },
     {
@@ -225,7 +225,7 @@ export const defaultCompany: Company = {
       stats: { design: 50, dev: 40, analysis: 55, creative: 95, comm: 65 },
       level: 2, rank: '主任', exp: 150, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'medium' },
-      visual: { gender: 'female', hairStyle: 'medium-wave', hairColor: '#3d2010', suitColor: '#3d2d40', accessory: 'scarf' },
+      visual: { gender: 'female', hairStyle: 'medium-wave', hairColor: '#e0a040', suitColor: '#f0e0e8', accessory: 'scarf' },
       room: 'open-office',
     },
     {
@@ -238,7 +238,7 @@ export const defaultCompany: Company = {
       stats: { design: 45, dev: 25, analysis: 60, creative: 70, comm: 95 },
       level: 2, rank: '主任', exp: 100, badges: [], secretBadges: [],
       consultationSettings: { target: 'direct', threshold: 'low' },
-      visual: { gender: 'male', hairStyle: 'short-natural', hairColor: '#2a2a2a', suitColor: '#2a3040', accessory: 'none' },
+      visual: { gender: 'male', hairStyle: 'short-natural', hairColor: '#4070a0', suitColor: '#2a3040', accessory: 'none' },
       room: 'open-office',
     },
   ],
