@@ -486,7 +486,7 @@ run_agent "doc-writer" "
 - 技術構成
 - 市場調査結果の反映状況
 - 残課題・次のステップ
-" "" "6" &
+" "" "10" &
 PID_DOC=$!
 
 wait $PID_REVIEW2 && add_exp "chief-secretary" 15 "要件設計レビュー完了"
@@ -534,7 +534,7 @@ run_agent "chief-secretary" "
 4. 次のアクション推奨
 5. 社員の頑張りポイント（社長に褒めていただきたい点）
 ※QAレポートは並行実行中のため、完了後に補完してください。
-" "" "5" &
+" "" "8" &
 PID_CS_REPORT=$!
 
 run_agent "secretary" "
@@ -550,7 +550,7 @@ run_agent "secretary" "
 5. オーナーにご判断いただきたい事項
 6. 注意事項・リスク
 7. 次のプロジェクトへの提言
-" "" "5" &
+" "" "8" &
 PID_SEC=$!
 
 wait $PID_QA && add_exp "qa-reviewer" 20 "タスク完了"
