@@ -49,7 +49,7 @@ export default function App() {
   const currentRecordId = useRef<string | null>(null);
   const prevStatus = useRef(relay.status);
   const isRunning = relay.status === 'running' || relay.status === 'connecting';
-  const officeActivity = useOfficeActivity(relay.lines, isRunning || relay.status === 'done');
+  const officeActivity = useOfficeActivity(relay.lines, executing);
 
   // 実行開始時にオフィスビューに自動切替
   useEffect(() => {

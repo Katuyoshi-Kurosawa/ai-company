@@ -40,20 +40,85 @@ const AGENT_PATTERNS: Record<string, { names: string[]; defaultRoom: RoomId }> =
 };
 
 /* ── 性格に合わせた吹き出しテンプレート ── */
-const SPEECH_TEMPLATES: Record<string, { start: string[]; done: string[]; phase: string[] }> = {
-  'ceo':              { start: ['計画は固まった。進めてくれ', '全体を見渡して判断する'], done: ['よくやった', '報告を待つ'], phase: ['次のフェーズだ'] },
-  'secretary':        { start: ['承知しました、社長', 'すぐ取りかかります'], done: ['ご報告いたします', '完了しました'], phase: ['進捗をまとめますね'] },
-  'chief-secretary':  { start: ['全体の進行を管理します', 'ボトルネックを潰します'], done: ['レビュー完了です', 'GO判定出します'], phase: ['各部門、状況は？'] },
-  'marketing':        { start: ['市場、めっちゃ面白いよ～！', '調査始めまーす！'], done: ['いいデータ取れた！', 'レポートできたよ♪'], phase: ['トレンド見えてきた！'] },
-  'hr':               { start: ['メンバーの力を引き出します', '評価基準を整理中...'], done: ['育成計画できました', '評価完了です'], phase: ['みんな頑張ってるね'] },
-  'cs':               { start: ['お客様目線で考えます！', 'シナリオ洗い出し中'], done: ['FAQ完成しました！', 'オンボーディング設計OK'], phase: ['ユーザーの声が大事'] },
-  'rd':               { start: ['常識破壊するぞ！', 'ぶっ飛んだアイデア出す'], done: ['10倍良くなる案できた', 'イノベーション提案完了'], phase: ['もっと攻めよう'] },
-  'planner':          { start: ['ペルソナから考えよう', '要件を整理します'], done: ['要件定義書完成！', 'ユーザー分析できた'], phase: ['全体像が見えてきた'] },
-  'architect':        { start: ['設計の完全性にこだわる', 'アーキテクチャ検討中...'], done: ['設計書仕上がった', 'スキーマも完成'], phase: ['整合性を確認中'] },
-  'developer':        { start: ['コード書くぞ！', '実装始めます'], done: ['実装完了！', 'デプロイ準備OK'], phase: ['ガリガリ書いてる'] },
-  'qa-reviewer':      { start: ['バグは逃さない', '品質チェック開始'], done: ['レビュー完了', 'セキュリティOK'], phase: ['一つずつ潰していく'] },
-  'ui-designer':      { start: ['美しいUIを作るよ', 'モックアップ制作中'], done: ['デザイン完成！', 'アクセシビリティもOK'], phase: ['色味を調整中...'] },
-  'doc-writer':       { start: ['報告書を書きます', '構成を練っています'], done: ['ドキュメント完成！', '読みやすく仕上げた'], phase: ['文章を磨いてる'] },
+const SPEECH_TEMPLATES: Record<string, { start: string[]; done: string[]; phase: string[]; click: string[] }> = {
+  'ceo': {
+    start: ['計画は固まった。進めてくれ', '全体を見渡して判断する'],
+    done: ['よくやった', '報告を待つ'],
+    phase: ['次のフェーズだ'],
+    click: ['何か報告か？', 'いいチームだ', '数字で語れ', '判断は迅速にする', 'リスクは把握している', '成果を期待しているぞ', '全体を俯瞰して動け'],
+  },
+  'secretary': {
+    start: ['承知しました、社長', 'すぐ取りかかります'],
+    done: ['ご報告いたします', '完了しました'],
+    phase: ['進捗をまとめますね'],
+    click: ['お呼びですか？', '社長のスケジュール確認しますね', 'ご用件をどうぞ', '何なりとお申し付けください', 'お茶をお持ちしましょうか？', '今日の予定をお伝えしますね', '社長は今お忙しそうです'],
+  },
+  'chief-secretary': {
+    start: ['全体の進行を管理します', 'ボトルネックを潰します'],
+    done: ['レビュー完了です', 'GO判定出します'],
+    phase: ['各部門、状況は？'],
+    click: ['進捗、把握してます', '何がボトルネックですか？', 'タスクの優先度を整理中です', '各部門の状況は順調です', 'スケジュール通りに進行中', '何か問題が？すぐ対応します', '効率化できる部分を探してます'],
+  },
+  'marketing': {
+    start: ['市場、めっちゃ面白いよ～！', '調査始めまーす！'],
+    done: ['いいデータ取れた！', 'レポートできたよ♪'],
+    phase: ['トレンド見えてきた！'],
+    click: ['あっ、呼んだ？♪', '今ちょうどSNS見てたの！', 'この業界、熱いよ～', '競合の動き、面白いことになってる', '数字がね、すごいのよ', 'ちょっといい情報あるんだけど', '人脈って大事よね～', 'トレンド？任せて！'],
+  },
+  'hr': {
+    start: ['メンバーの力を引き出します', '評価基準を整理中...'],
+    done: ['育成計画できました', '評価完了です'],
+    phase: ['みんな頑張ってるね'],
+    click: ['みんなの成長が楽しみです', '最近チームの雰囲気いいですね', '何かお困りのことは？', '研修プラン考えてるんです', '一人ひとりの強みを伸ばしたい', 'メンタルケアも大事ですからね', '適材適所を常に考えてます'],
+  },
+  'cs': {
+    start: ['お客様目線で考えます！', 'シナリオ洗い出し中'],
+    done: ['FAQ完成しました！', 'オンボーディング設計OK'],
+    phase: ['ユーザーの声が大事'],
+    click: ['お客様のこと、考えてました！', 'ユーザーさんの気持ちになって…', 'サポート品質、もっと上げたい！', 'この機能、初心者には難しいかも', 'お問い合わせ減らす施策考え中', 'NPS上げたいんですよね', '顧客の声、聞こえてますか？'],
+  },
+  'rd': {
+    start: ['常識破壊するぞ！', 'ぶっ飛んだアイデア出す'],
+    done: ['10倍良くなる案できた', 'イノベーション提案完了'],
+    phase: ['もっと攻めよう'],
+    click: ['おっ、何？新しいネタ？', '今めっちゃ閃いてるとこ', '10倍にする方法、思いついた', '常識？そんなの壊すためにある', '未来はもうすぐそこだ', 'プロトタイプ作っちゃおうぜ', 'AIの進化ヤバいぞ', 'ぶっ飛んだアイデアある？'],
+  },
+  'planner': {
+    start: ['ペルソナから考えよう', '要件を整理します'],
+    done: ['要件定義書完成！', 'ユーザー分析できた'],
+    phase: ['全体像が見えてきた'],
+    click: ['ユーザーの課題、見えてきた', '要件の優先度、悩ましいね', 'ペルソナ的にはこうかな…', 'データに基づいて判断したい', 'まず70点で出してみよう', 'ビジョンを共有しよう', '全体像から逆算してみると…'],
+  },
+  'architect': {
+    start: ['設計の完全性にこだわる', 'アーキテクチャ検討中...'],
+    done: ['設計書仕上がった', 'スキーマも完成'],
+    phase: ['整合性を確認中'],
+    click: ['設計に妥協はしない', 'この構成が最も堅牢だ', 'スケーラビリティは考慮済み', 'セキュリティ？万全だ', 'API設計、美しくないか？', 'ベストプラクティスに則ってる', 'DB正規化は慎重にやる'],
+  },
+  'developer': {
+    start: ['コード書くぞ！', '実装始めます'],
+    done: ['実装完了！', 'デプロイ準備OK'],
+    phase: ['ガリガリ書いてる'],
+    click: ['今コード書いてるんだけど…', 'TypeScript最高だな', 'あ、ちょっとバグ見つけた', 'リファクタしたくなってきた', 'テスト書かなきゃ…', 'この実装、キレイだろ？', 'デプロイ楽しみだな', 'Vite速すぎて最高'],
+  },
+  'qa-reviewer': {
+    start: ['バグは逃さない', '品質チェック開始'],
+    done: ['レビュー完了', 'セキュリティOK'],
+    phase: ['一つずつ潰していく'],
+    click: ['バグの匂いがする…', '品質に妥協は許さない', 'エッジケース、考えた？', 'セキュリティホールはないか…', 'テストカバレッジ足りてる？', 'OWASP Top 10、確認済み', '完璧を目指す、それだけだ'],
+  },
+  'ui-designer': {
+    start: ['美しいUIを作るよ', 'モックアップ制作中'],
+    done: ['デザイン完成！', 'アクセシビリティもOK'],
+    phase: ['色味を調整中...'],
+    click: ['あ、このUI見て見て！', 'ピクセルが1つズレてる気が…', '余白って大事なんだよね', 'アクセシビリティ考えてる？', 'カラーパレット悩む〜', 'ユーザーの目線で見てみると…', 'フォントサイズ、もう少し…'],
+  },
+  'doc-writer': {
+    start: ['報告書を書きます', '構成を練っています'],
+    done: ['ドキュメント完成！', '読みやすく仕上げた'],
+    phase: ['文章を磨いてる'],
+    click: ['いい文章には構成が大事', '読みやすさを追求中です', '図解入れたほうがいいかな', 'エグゼクティブサマリー書いてる', 'テンプレート作っておこうかな', '一文は短く、これが鉄則', 'ストーリーで伝えよう'],
+  },
 };
 
 /* ── フェーズごとの部屋割り当て ── */
@@ -95,9 +160,8 @@ export function useOfficeActivity(lines: LogLine[], isRunning: boolean) {
   // ランダム選択ヘルパー
   const pick = useCallback(<T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)], []);
 
-  // 吹き出し期限チェック（3秒で消える）
+  // 吹き出し期限チェック（常時動作 — クリック吹き出しにも対応）
   useEffect(() => {
-    if (!isRunning) return;
     const iv = setInterval(() => {
       const now = Date.now();
       setActivities(prev => {
@@ -113,7 +177,36 @@ export function useOfficeActivity(lines: LogLine[], isRunning: boolean) {
       });
     }, 500);
     return () => clearInterval(iv);
-  }, [isRunning]);
+  }, []);
+
+  // クリックで話す（吹き出しのみ表示、アクション状態は変えない）
+  const triggerSpeech = useCallback((agentId: string, _defaultRoom: RoomId) => {
+    const templates = SPEECH_TEMPLATES[agentId];
+    if (!templates) return;
+    const speech = pick(templates.click);
+    setActivities(prev => {
+      const next = new Map(prev);
+      const existing = next.get(agentId);
+      if (existing) {
+        // 既存のアクティビティに吹き出しだけ追加
+        next.set(agentId, {
+          ...existing,
+          speech,
+          speechExpiry: Date.now() + 3500,
+        });
+      } else {
+        // アクティビティがない場合は吹き出し専用エントリ（idleのまま）
+        next.set(agentId, {
+          agentId,
+          room: AGENT_PATTERNS[agentId]?.defaultRoom ?? 'open-office',
+          action: 'idle',
+          speech,
+          speechExpiry: Date.now() + 3500,
+        });
+      }
+      return next;
+    });
+  }, [pick]);
 
   // ログ解析
   useEffect(() => {
@@ -238,10 +331,21 @@ export function useOfficeActivity(lines: LogLine[], isRunning: boolean) {
     });
   }, [lines, pick]);
 
-  // リセット
+  // 実行終了時にリセット（アクション状態をクリアして通常表示に戻す）
+  const wasRunning = useRef(false);
   useEffect(() => {
-    if (!isRunning) {
-      processedCount.current = 0;
+    if (isRunning) {
+      wasRunning.current = true;
+    } else if (wasRunning.current) {
+      // 実行が終わった → 5秒後にactivitiesをクリア（完了演出の猶予）
+      wasRunning.current = false;
+      const timer = setTimeout(() => {
+        processedCount.current = 0;
+        setActivities(new Map());
+        setPhase('待機中');
+        setProgress(0);
+      }, 5000);
+      return () => clearTimeout(timer);
     }
   }, [isRunning]);
 
@@ -295,5 +399,6 @@ export function useOfficeActivity(lines: LogLine[], isRunning: boolean) {
     phase,
     progress,
     energyLevel,
+    triggerSpeech,
   };
 }
