@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # ============================================================
-# AI会社シミュレーション — メインオーケストレーター v4
-# 高速化: 3フェーズ統合・楽観的並列実行・haiku軽量モード・maxTurns最適化・コンテキスト軽量化
+# AI会社シミュレーション — メインオーケストレーター v5
+# 高速化: 3段階テーマ判定・動的モデル切替・UI前倒し並列
+#         3フェーズ統合・楽観的並列実行・haiku軽量モード
 # Usage: ./ai-company.sh "テーマ"
 # ============================================================
 
@@ -164,37 +165,57 @@ ${context}
 }
 
 # ══════════════════════════════════════════════════════════════
-# 改善1: テーマ軽重判定 — 挨拶・簡単な質問は秘書だけで即応答
+# テーマ3段階判定: lightweight / medium / heavy
+#   lightweight: 挨拶・雑談 → 秘書のみ（haiku）
+#   medium: 文章作成・調査・簡単なタスク → コア4名で高速処理
+#   heavy: システム開発・新規事業 → 全13名フル稼働
 # ══════════════════════════════════════════════════════════════
 
-is_lightweight_theme() {
+classify_theme() {
   local theme_lower
   theme_lower=$(echo "$THEME" | tr '[:upper:]' '[:lower:]')
-  # 挨拶・簡単な質問パターン
+
+  # --- lightweight: 挨拶・簡単な質問 ---
   case "$theme_lower" in
     *おはよう*|*こんにちは*|*こんばんは*|*お疲れ*|*ありがとう*|*よろしく*)
-      return 0 ;;
+      echo "lightweight"; return ;;
     *調子*どう*|*元気*|*天気*|*雑談*)
-      return 0 ;;
+      echo "lightweight"; return ;;
     hello*|hi\ *|hey*|good\ morning*|thanks*)
-      return 0 ;;
+      echo "lightweight"; return ;;
   esac
-  # 10文字以下で「？」「?」で終わる簡単な質問
   if [ ${#THEME} -le 15 ] && [[ "$THEME" == *？ || "$THEME" == *\? ]]; then
-    return 0
+    echo "lightweight"; return
   fi
-  return 1
+
+  # --- heavy: 開発・システム・アプリ・新規事業 ---
+  case "$theme_lower" in
+    *開発*|*実装*|*アプリ*|*システム*|*機能*|*api*|*db*|*データベース*)
+      echo "heavy"; return ;;
+    *新規事業*|*サービス*|*プロダクト*|*プラットフォーム*|*saas*)
+      echo "heavy"; return ;;
+    *リファクタ*|*マイグレーション*|*インフラ*|*デプロイ*|*ci*|*cd*)
+      echo "heavy"; return ;;
+  esac
+
+  # --- medium: それ以外（文章作成、調査、分析、提案など） ---
+  echo "medium"
 }
 
-if is_lightweight_theme; then
+THEME_WEIGHT=$(classify_theme)
+
+# ══════════════════════════════════════════════════════════════
+# lightweight モード: 秘書のみ（haiku）
+# ══════════════════════════════════════════════════════════════
+
+if [ "$THEME_WEIGHT" = "lightweight" ]; then
   log "============================================"
-  log "🏢 AI会社シミュレーション v3 起動（軽量モード）"
+  log "🏢 AI会社シミュレーション v5 起動（軽量モード）"
   log "📌 テーマ: $THEME"
   log "============================================"
   log ""
   log "━━━ 軽量モード: CEO秘書が応答 ━━━"
 
-  # 提案5: 軽量モードはhaikuで高速応答、maxTurns=3で十分
   run_agent "secretary" "
 テーマ: $THEME
 
@@ -224,12 +245,154 @@ if is_lightweight_theme; then
 fi
 
 # ══════════════════════════════════════════════════════════════
-# 通常モード: 4フェーズ構成（v2の6フェーズから統合）
+# medium モード: コア4名（CEO + 企画 + 資料作成 + 秘書）で高速処理
+#   設計・開発・QA・デザイン等のシステム系エージェントをスキップ
+# ══════════════════════════════════════════════════════════════
+
+if [ "$THEME_WEIGHT" = "medium" ]; then
+  log "============================================"
+  log "🏢 AI会社シミュレーション v5 起動（中量モード）"
+  log "📌 テーマ: $THEME"
+  log "📁 出力先: $PROJECT_DIR"
+  log "============================================"
+
+  # --- PHASE 1: CEO計画 + マーケ調査 + R&Dアイデア（3並列）---
+  PHASE1_START=$(date +%s)
+  log ""
+  log "━━━ 中量PHASE 1: 計画＋調査（3並列）━━━"
+
+  run_agent "ceo" "
+テーマ: $THEME
+
+以下のJSON形式でプロジェクト計画を $PROJECT_DIR/plan.json に出力してください:
+{
+  \"theme\": \"テーマ\",
+  \"goals\": [\"目標1\", \"目標2\"],
+  \"scope\": \"スコープの説明\",
+  \"phases\": [
+    { \"phase\": 1, \"name\": \"...\", \"assignee\": \"...\", \"deliverable\": \"...\" }
+  ],
+  \"risks\": [\"リスク1\"],
+  \"success_criteria\": [\"基準1\"]
+}
+
+※このテーマはシステム開発ではなく、文章作成・調査・分析系のタスクです。
+※ファイル先頭に ## サマリー セクションを付けること。
+" "sonnet" "5" &
+  PID_CEO=$!
+
+  run_agent "marketing" "
+テーマ: $THEME
+
+テーマに関する市場調査・背景調査を $PROJECT_DIR/marketing-report.md に出力してください。
+※冒頭に必ず ## サマリー セクション（5行以内の要約）を付けること。
+- 関連するトレンド・動向
+- ターゲット分析
+- 参考事例・ベストプラクティス
+" "sonnet" "6" &
+  PID_MARKETING=$!
+
+  run_agent "rd" "
+テーマ: $THEME
+
+テーマに対する革新的なアイデアや切り口を $PROJECT_DIR/rd-report.md に出力してください。
+※冒頭に必ず ## サマリー セクション（上位3案の要約）を付けること。
+- 従来のアプローチを超える方法（最低5案）
+- 差別化できる切り口
+- 実現可能性と優先度
+" "sonnet" "6" &
+  PID_RD=$!
+
+  wait $PID_CEO && add_exp "ceo" 20 "タスク完了"
+  wait $PID_MARKETING && add_exp "marketing" 20 "タスク完了"
+  wait $PID_RD && add_exp "rd" 20 "タスク完了"
+  record_phase "MEDIUM_PHASE1" "$PHASE1_START"
+
+  # --- PHASE 2: 企画（要件定義）+ 資料作成（成果物）+ 秘書（報告）3並列 ---
+  PHASE2_START=$(date +%s)
+  log ""
+  log "━━━ 中量PHASE 2: 企画＋成果物作成＋報告（3並列）━━━"
+
+  run_agent "planner" "
+テーマ: $THEME
+CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
+市場調査: $(extract_summary "$PROJECT_DIR/marketing-report.md")
+R&Dアイデア: $(extract_summary "$PROJECT_DIR/rd-report.md")
+
+要件定義書を $PROJECT_DIR/requirements.md に出力してください。
+※冒頭に必ず ## サマリー セクション（10行以内の要約）を付けること。
+
+本文に含める内容:
+- 背景・目的
+- 成果物の要件（品質基準・フォーマット等）
+- ターゲット・ペルソナ
+- 制約事項
+" "sonnet" "8" &
+  PID_PLANNER=$!
+
+  run_agent "doc-writer" "
+テーマ: $THEME
+CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
+市場調査: $(extract_summary "$PROJECT_DIR/marketing-report.md")
+R&Dアイデア: $(extract_summary "$PROJECT_DIR/rd-report.md")
+
+テーマの最終成果物を $PROJECT_DIR/deliverable.md に出力してください。
+また、プロジェクト報告書を $PROJECT_DIR/report.md に出力してください。
+
+※成果物はそのまま使える完成度で仕上げること。
+※報告書にはエグゼクティブサマリー・成果物概要・残課題を含めること。
+" "sonnet" "10" &
+  PID_DOC=$!
+
+  wait $PID_PLANNER && add_exp "planner" 20 "タスク完了"
+  wait $PID_DOC && add_exp "doc-writer" 25 "成果物＋報告書完了"
+
+  # 秘書報告（成果物完成後）
+  run_agent "secretary" "
+テーマ: $THEME
+計画サマリー: $(extract_summary "$PROJECT_DIR/plan.json")
+報告書サマリー: $(extract_summary "$PROJECT_DIR/report.md")
+
+オーナー（ユーザー）への最終報告を $PROJECT_DIR/secretary-report.md に出力してください:
+1. プロジェクト完了のお知らせ
+2. 成果物のハイライト
+3. 社員の活躍ピックアップ
+4. 次のアクション提言
+" "sonnet" "8"
+  add_exp "secretary" 20 "タスク完了"
+  record_phase "MEDIUM_PHASE2" "$PHASE2_START"
+
+  # 中量モード参加者にEXP付与
+  MEDIUM_AGENTS="ceo secretary marketing rd planner doc-writer"
+  for agent_id in $MEDIUM_AGENTS; do
+    add_exp "$agent_id" 50 "プロジェクト完了（中量）"
+  done
+
+  PROJECT_END=$(date +%s)
+  TOTAL_DURATION=$((PROJECT_END - PROJECT_START))
+  tmp=$(mktemp)
+  jq ".total_duration_sec = $TOTAL_DURATION | .project_end = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" | .mode = \"medium\"" "$METRICS_FILE" > "$tmp" && mv "$tmp" "$METRICS_FILE"
+
+  log ""
+  log "============================================"
+  log "🎉 AI会社シミュレーション v5 完了（中量モード）"
+  log "📁 成果物: $PROJECT_DIR"
+  log "⏱️  総所要時間: ${TOTAL_DURATION}秒"
+  log "📊 計測データ: $METRICS_FILE"
+  log "============================================"
+
+  notify_slack "🎉 中量モード完了\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒\n成果物: $PROJECT_DIR"
+  log "🏁 全工程終了"
+  exit 0
+fi
+
+# ══════════════════════════════════════════════════════════════
+# heavy モード: 全13名フル稼働（3フェーズ構成）
 # ══════════════════════════════════════════════════════════════
 
 log "============================================"
-log "🏢 AI会社シミュレーション v4 起動"
-log "   3フェーズ構成・楽観的並列・maxTurns最適化"
+log "🏢 AI会社シミュレーション v5 起動（重量モード）"
+log "   3フェーズ構成・楽観的並列・動的モデル切替"
 log "📌 テーマ: $THEME"
 log "📁 出力先: $PROJECT_DIR"
 log "============================================"
@@ -370,7 +533,15 @@ CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
 " "" "8" &
 PID_RD=$!
 
-# 提案3: 設計部長もextract_summaryに統一（read_full不要）
+# 動的モデル切替: テーマの複雑さに応じてarchitectのモデルを選択
+# 「設計」「アーキ」「マイクロサービス」等のキーワードがあればopus、それ以外はsonnet
+ARCHITECT_MODEL="sonnet"
+case "$(echo "$THEME" | tr '[:upper:]' '[:lower:]')" in
+  *設計*|*アーキ*|*マイクロサービス*|*分散*|*セキュリティ*|*migration*|*リファクタ*)
+    ARCHITECT_MODEL="opus" ;;
+esac
+log "🔧 architect モデル: ${ARCHITECT_MODEL}（テーマ判定）"
+
 run_agent "architect" "
 テーマ: $THEME
 CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
@@ -388,19 +559,33 @@ CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
    - セキュリティ方針
    - データモデル詳細
 2. $PROJECT_DIR/schema.sql — DBスキーマ（Cloudflare D1 / SQLite）
-" "" "10" &
+" "$ARCHITECT_MODEL" "10" &
 PID_ARCH=$!
+
+# UI前倒し: 要件サマリーが出た時点でPhase2からデザイン着手（楽観的並列）
+run_agent "ui-designer" "
+テーマ: $THEME
+CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
+市場調査: $(extract_summary "$PROJECT_DIR/marketing-report.md")
+ペルソナ調査: $(extract_summary "$PROJECT_DIR/persona-research.md")
+
+UIモックアップを $PROJECT_DIR/mockup.html に出力してください。
+HTML + Tailwind CSS で実際に表示できる形式にすること。
+アクセシビリティに配慮すること。
+※要件定義書・設計書は並行作成中です。テーマとペルソナ調査から最適なUIを設計してください。
+" "" "8" &
+PID_DESIGN=$!
 
 wait $PID_REVIEW1 && add_exp "chief-secretary" 20 "キックオフレビュー完了"
 wait $PID_PLANNER && add_exp "planner" 20 "タスク完了"
 wait $PID_RD && add_exp "rd" 20 "タスク完了"
 wait $PID_ARCH && add_exp "architect" 30 "設計完了"
+wait $PID_DESIGN && add_exp "ui-designer" 20 "モックアップ完了"
 record_phase "PHASE2" "$PHASE2_START"
 
 # ================================================================
 # PHASE 3: 実装＋QA＋評価＋報告書＋最終報告（全統合・最大並列）
-#   提案4: 旧Phase3+4を統合。実装とQA準備・報告書を同時並行。
-#   提案2: 要件設計レビューも楽観的並列実行。
+#   要件設計レビューも楽観的並列実行。
 # ================================================================
 PHASE3_START=$(date +%s)
 log ""
@@ -414,17 +599,6 @@ R&Dサマリー: $(extract_summary "$PROJECT_DIR/rd-report.md")
 スキーマ: $(extract_summary "$PROJECT_DIR/schema.sql")
 " &
 PID_REVIEW2=$!
-
-run_agent "ui-designer" "
-テーマ: $THEME
-要件サマリー: $(extract_summary "$PROJECT_DIR/requirements.md")
-設計サマリー: $(extract_summary "$PROJECT_DIR/design.md")
-
-UIモックアップを $PROJECT_DIR/mockup.html に出力してください。
-HTML + Tailwind CSS で実際に表示できる形式にすること。
-アクセシビリティに配慮すること。
-" "" "8" &
-PID_DESIGN=$!
 
 # 提案3: 開発部長もextract_summaryを活用（要件・設計はサマリーで十分、スキーマのみfull）
 run_agent "developer" "
@@ -490,7 +664,6 @@ run_agent "doc-writer" "
 PID_DOC=$!
 
 wait $PID_REVIEW2 && add_exp "chief-secretary" 15 "要件設計レビュー完了"
-wait $PID_DESIGN && add_exp "ui-designer" 20 "タスク完了"
 wait $PID_DEV && add_exp "developer" 20 "タスク完了"
 wait $PID_CS_FINAL && add_exp "cs" 20 "タスク完了"
 wait $PID_HR && add_exp "hr" 20 "タスク完了"
@@ -567,7 +740,7 @@ jq ".total_duration_sec = $TOTAL_DURATION | .project_end = \"$(date -u +%Y-%m-%d
 
 log ""
 log "============================================"
-log "🎉 AI会社シミュレーション v4 完了"
+log "🎉 AI会社シミュレーション v5 完了（重量モード）"
 log "📁 成果物: $PROJECT_DIR"
 log "⏱️  総所要時間: ${TOTAL_DURATION}秒"
 log "📊 計測データ: $METRICS_FILE"
@@ -579,6 +752,6 @@ for agent_id in $ALL_AGENTS; do
   add_exp "$agent_id" 100 "プロジェクト完了"
 done
 
-notify_slack "🎉 AI会社プロジェクト完了 v3\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒\n成果物: $PROJECT_DIR"
+notify_slack "🎉 AI会社プロジェクト完了 v5（重量モード）\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒\n成果物: $PROJECT_DIR"
 
 log "🏁 全工程終了"
