@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # ============================================================
-# AI会社シミュレーション — メインオーケストレーター v3
-# 高速化: テーマ判定・4フェーズ統合・MTG廃止・モデル最適化
+# AI会社シミュレーション — メインオーケストレーター v4
+# 高速化: 3フェーズ統合・楽観的並列実行・haiku軽量モード・maxTurns最適化・コンテキスト軽量化
 # Usage: ./ai-company.sh "テーマ"
 # ============================================================
 
@@ -103,14 +103,15 @@ read_full() {
 }
 
 # ── 計測付き run_agent ───────────────────────────────────────
+# Usage: run_agent <agent_id> <prompt> [model_override] [max_turns_override]
 
 run_agent() {
   local agent_id="$1"
   local prompt="$2"
-  local model
-  model=$(get_agent_field "$agent_id" ".model")
-  local max_turns
-  max_turns=$(get_agent_field "$agent_id" ".maxTurns")
+  local model="${3:-}"
+  local max_turns="${4:-}"
+  [ -z "$model" ] && model=$(get_agent_field "$agent_id" ".model")
+  [ -z "$max_turns" ] && max_turns=$(get_agent_field "$agent_id" ".maxTurns")
   local system_prompt_file="${AGENTS_DIR}/${agent_id}.md"
 
   if [ ! -f "$system_prompt_file" ]; then
@@ -122,7 +123,7 @@ run_agent() {
   agent_name=$(get_agent_field "$agent_id" ".icon + \" \" + .name + \" \" + .title")
 
   record_agent_start "$agent_id"
-  log "🚀 ${agent_name} 開始（${model}）"
+  log "🚀 ${agent_name} 開始（${model}, maxTurns=${max_turns}）"
 
   env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p \
     --model "$model" \
@@ -193,6 +194,7 @@ if is_lightweight_theme; then
   log ""
   log "━━━ 軽量モード: CEO秘書が応答 ━━━"
 
+  # 提案5: 軽量モードはhaikuで高速応答、maxTurns=3で十分
   run_agent "secretary" "
 テーマ: $THEME
 
@@ -203,7 +205,7 @@ if is_lightweight_theme; then
 - 社長や社員の近況を交えた温かい返答
 - 必要に応じて本日の予定や進行中の案件を簡潔に報告
 - 何かプロジェクト指示があればお気軽にどうぞ、と添える
-"
+" "haiku" "3"
   add_exp "secretary" 10 "軽量応答"
 
   PROJECT_END=$(date +%s)
@@ -226,15 +228,15 @@ fi
 # ══════════════════════════════════════════════════════════════
 
 log "============================================"
-log "🏢 AI会社シミュレーション v3 起動"
-log "   4フェーズ構成・MTG廃止・モデル最適化"
+log "🏢 AI会社シミュレーション v4 起動"
+log "   3フェーズ構成・楽観的並列・maxTurns最適化"
 log "📌 テーマ: $THEME"
 log "📁 出力先: $PROJECT_DIR"
 log "============================================"
 
 # ================================================================
 # PHASE 1: 調査・計画（CEO + マーケ + CS + 企画 4並列）
-#          → 秘書部長レビュー
+#          → 秘書部長レビューをPhase2と楽観的並列実行
 # ================================================================
 PHASE1_START=$(date +%s)
 log ""
@@ -256,7 +258,7 @@ run_agent "ceo" "
 }
 
 ※ファイル先頭に ## サマリー セクションを付けること（後続フェーズの参照用）
-" &
+" "" "5" &
 PID_CEO=$!
 
 run_agent "marketing" "
@@ -270,7 +272,7 @@ run_agent "marketing" "
 - ターゲット顧客分析
 - 差別化ポイントの提案
 - 参入リスクと機会
-" &
+" "" "8" &
 PID_MARKETING=$!
 
 run_agent "cs" "
@@ -283,7 +285,7 @@ run_agent "cs" "
 - 初期FAQドラフト
 - オンボーディングの流れ（概要）
 - 解約リスクが高いユーザーパターン
-" &
+" "" "6" &
 PID_CS=$!
 
 run_agent "planner" "
@@ -298,20 +300,28 @@ run_agent "planner" "
 - ユーザーの課題・ペインポイント分析
 - 競合プロダクトのUX比較
 - アクセシビリティ配慮事項
-" &
+" "" "8" &
 PID_PLANNER_P1=$!
 
 wait $PID_CEO && add_exp "ceo" 20 "タスク完了"
 wait $PID_MARKETING && add_exp "marketing" 20 "タスク完了"
 wait $PID_CS && add_exp "cs" 20 "タスク完了"
 wait $PID_PLANNER_P1 && add_exp "planner" 15 "ペルソナ調査完了"
+record_phase "PHASE1" "$PHASE1_START"
 
-# 秘書部長 — PM: キックオフレビュー（非同期、MTG不要）
+# ================================================================
+# PHASE 2: 要件＋R&D＋設計（3並列）＋ キックオフレビュー（楽観的並列）
+#   提案2: レビューを次フェーズと並列実行（楽観的並列実行）
+#   提案3: コンテキスト注入をextract_summaryに統一
+# ================================================================
+PHASE2_START=$(date +%s)
 log ""
-log "━━━ 秘書部長（PM）: キックオフレビュー ━━━"
+log "━━━ PHASE 2: 要件＋R&D＋設計＋レビュー（楽観的並列）━━━"
+
+# キックオフレビュー（Phase2作業と並列実行）
 run_agent "chief-secretary" "
 テーマ: $THEME
-CEO計画: $(read_full "$PROJECT_DIR/plan.json")
+CEO計画: $(extract_summary "$PROJECT_DIR/plan.json")
 市場調査サマリー: $(extract_summary "$PROJECT_DIR/marketing-report.md")
 CS想定サマリー: $(extract_summary "$PROJECT_DIR/cs-scenarios.md")
 ペルソナ調査サマリー: $(extract_summary "$PROJECT_DIR/persona-research.md")
@@ -322,24 +332,15 @@ CS想定サマリー: $(extract_summary "$PROJECT_DIR/cs-scenarios.md")
 3. 各部門への指示・期待事項
 4. リスク・ボトルネック予測
 5. キックオフレビュー判定: GO / 要修正
-"
-add_exp "chief-secretary" 20 "タスク完了"
-record_phase "PHASE1" "$PHASE1_START"
-
-# ================================================================
-# PHASE 2: 要件定義 + R&D + 設計（3並列 → 非同期レビュー）
-#          旧PHASE2+3を統合。概要設計と詳細設計を1回で完了。
-# ================================================================
-PHASE2_START=$(date +%s)
-log ""
-log "━━━ PHASE 2: 要件＋R&D＋設計（3並列）━━━"
+" "" "5" &
+PID_REVIEW1=$!
 
 run_agent "planner" "
 テーマ: $THEME
 CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
 市場調査: $(extract_summary "$PROJECT_DIR/marketing-report.md")
 CS想定: $(extract_summary "$PROJECT_DIR/cs-scenarios.md")
-ペルソナ調査: $(read_full "$PROJECT_DIR/persona-research.md")
+ペルソナ調査: $(extract_summary "$PROJECT_DIR/persona-research.md")
 
 ペルソナ調査を統合し、要件定義書を $PROJECT_DIR/requirements.md に出力してください。
 ※冒頭に必ず ## サマリー セクション（10行以内の要約）を付けること。
@@ -351,7 +352,7 @@ CS想定: $(extract_summary "$PROJECT_DIR/cs-scenarios.md")
 - ペルソナ・カスタマージャーニーマップ
 - ユースケース
 - 制約事項
-" &
+" "" "8" &
 PID_PLANNER=$!
 
 run_agent "rd" "
@@ -366,13 +367,13 @@ CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
 - 競合が思いつかない差別化アイデア
 - 技術トレンドを活用した革新的機能
 - 実現可能性と優先度のマトリクス
-" &
+" "" "8" &
 PID_RD=$!
 
-# 設計部長 — 概要+詳細を1回で完了（旧PHASE2+3統合）
+# 提案3: 設計部長もextract_summaryに統一（read_full不要）
 run_agent "architect" "
 テーマ: $THEME
-CEOの計画: $(read_full "$PROJECT_DIR/plan.json")
+CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
 市場調査: $(extract_summary "$PROJECT_DIR/marketing-report.md")
 
 技術設計書を作成してください。概要設計と詳細設計を1つにまとめます。
@@ -387,31 +388,32 @@ CEOの計画: $(read_full "$PROJECT_DIR/plan.json")
    - セキュリティ方針
    - データモデル詳細
 2. $PROJECT_DIR/schema.sql — DBスキーマ（Cloudflare D1 / SQLite）
-" &
+" "" "10" &
 PID_ARCH=$!
 
+wait $PID_REVIEW1 && add_exp "chief-secretary" 20 "キックオフレビュー完了"
 wait $PID_PLANNER && add_exp "planner" 20 "タスク完了"
 wait $PID_RD && add_exp "rd" 20 "タスク完了"
 wait $PID_ARCH && add_exp "architect" 30 "設計完了"
+record_phase "PHASE2" "$PHASE2_START"
 
-# 非同期レビュー（MTG廃止、秘書部長PMが一括レビュー）
+# ================================================================
+# PHASE 3: 実装＋QA＋評価＋報告書＋最終報告（全統合・最大並列）
+#   提案4: 旧Phase3+4を統合。実装とQA準備・報告書を同時並行。
+#   提案2: 要件設計レビューも楽観的並列実行。
+# ================================================================
+PHASE3_START=$(date +%s)
 log ""
-log "━━━ 非同期レビュー: 要件＋設計（秘書部長PM） ━━━"
+log "━━━ PHASE 3: 実装＋QA＋評価＋報告（最大並列）━━━"
+
+# 要件・設計レビュー（楽観的並列 — 実装と同時進行）
 run_async_review "要件・設計レビュー" "
 要件サマリー: $(extract_summary "$PROJECT_DIR/requirements.md")
 設計サマリー: $(extract_summary "$PROJECT_DIR/design.md")
 R&Dサマリー: $(extract_summary "$PROJECT_DIR/rd-report.md")
-スキーマ: $(read_full "$PROJECT_DIR/schema.sql")
-"
-record_phase "PHASE2" "$PHASE2_START"
-
-# ================================================================
-# PHASE 3: 実装（デザイン + 開発 + CS最終化 3並列）
-#          旧PHASE4を吸収。開発事前準備を廃止し直接実装。
-# ================================================================
-PHASE3_START=$(date +%s)
-log ""
-log "━━━ PHASE 3: 実装（デザイン＋開発＋CS 3並列）━━━"
+スキーマ: $(extract_summary "$PROJECT_DIR/schema.sql")
+" &
+PID_REVIEW2=$!
 
 run_agent "ui-designer" "
 テーマ: $THEME
@@ -421,13 +423,14 @@ run_agent "ui-designer" "
 UIモックアップを $PROJECT_DIR/mockup.html に出力してください。
 HTML + Tailwind CSS で実際に表示できる形式にすること。
 アクセシビリティに配慮すること。
-" &
+" "" "8" &
 PID_DESIGN=$!
 
+# 提案3: 開発部長もextract_summaryを活用（要件・設計はサマリーで十分、スキーマのみfull）
 run_agent "developer" "
 テーマ: $THEME
-要件: $(read_full "$PROJECT_DIR/requirements.md")
-設計: $(read_full "$PROJECT_DIR/design.md")
+要件: $(extract_summary "$PROJECT_DIR/requirements.md")
+設計: $(extract_summary "$PROJECT_DIR/design.md")
 スキーマ: $(read_full "$PROJECT_DIR/schema.sql")
 
 アプリケーションを $PROJECT_DIR/app/ に実装してください。
@@ -449,21 +452,53 @@ run_agent "cs" "
 - サポートチャネル設計
 - チャーン防止施策
 - 顧客満足度KPI設定
-" &
+" "" "6" &
 PID_CS_FINAL=$!
 
+# 提案4: 人事評価を実装と並列実行（Phase4から前倒し）
+run_agent "hr" "
+テーマ: $THEME
+プロジェクト出力先: $PROJECT_DIR
+
+プロジェクト参加メンバーの評価と育成提案を $PROJECT_DIR/hr-report.md に出力してください。
+※冒頭に ## サマリー セクション必須。
+
+- 各メンバーの貢献度評価
+- スキルアップが必要な分野の特定
+- チーム全体の強み・弱み分析
+- 次プロジェクトに向けた教育計画
+" "" "6" &
+PID_HR=$!
+
+# 提案4: 報告書ドラフトも並列実行（QA結果はあとで追記）
+run_agent "doc-writer" "
+テーマ: $THEME
+計画サマリー: $(extract_summary "$PROJECT_DIR/plan.json")
+要件サマリー: $(extract_summary "$PROJECT_DIR/requirements.md")
+設計サマリー: $(extract_summary "$PROJECT_DIR/design.md")
+市場調査サマリー: $(extract_summary "$PROJECT_DIR/marketing-report.md")
+
+プロジェクト最終報告書を $PROJECT_DIR/report.md に出力してください。
+※QA・CSレポートは並行実行中のため、他の情報で報告書を完成させてください。
+
+- エグゼクティブサマリー
+- 成果物一覧と概要
+- 技術構成
+- 市場調査結果の反映状況
+- 残課題・次のステップ
+" "" "6" &
+PID_DOC=$!
+
+wait $PID_REVIEW2 && add_exp "chief-secretary" 15 "要件設計レビュー完了"
 wait $PID_DESIGN && add_exp "ui-designer" 20 "タスク完了"
 wait $PID_DEV && add_exp "developer" 20 "タスク完了"
 wait $PID_CS_FINAL && add_exp "cs" 20 "タスク完了"
-record_phase "PHASE3" "$PHASE3_START"
+wait $PID_HR && add_exp "hr" 20 "タスク完了"
+wait $PID_DOC && add_exp "doc-writer" 20 "報告書完了"
 
-# ================================================================
-# PHASE 4: QA + 人事 + 報告書 + 最終報告（4並列 → 秘書報告）
-#          旧PHASE5+6を統合。報告書ドラフト→最終化の2段階を1回に。
-# ================================================================
-PHASE4_START=$(date +%s)
+# QAは実装完了後に実行（コードが必要なため）
 log ""
-log "━━━ PHASE 4: QA＋評価＋報告書（3並列→最終報告）━━━"
+log "━━━ QA＋最終報告（QA→最終報告）━━━"
 
 run_agent "qa-reviewer" "
 テーマ: $THEME
@@ -482,55 +517,12 @@ run_agent "qa-reviewer" "
 - パフォーマンス懸念事項
 - アクセシビリティチェック
 - 改善提案（優先度付き）
-" &
+" "" "8" &
 PID_QA=$!
 
-run_agent "hr" "
-テーマ: $THEME
-プロジェクト出力先: $PROJECT_DIR
-
-プロジェクト参加メンバーの評価と育成提案を $PROJECT_DIR/hr-report.md に出力してください。
-※冒頭に ## サマリー セクション必須。
-
-- 各メンバーの貢献度評価
-- スキルアップが必要な分野の特定
-- チーム全体の強み・弱み分析
-- 次プロジェクトに向けた教育計画
-" &
-PID_HR=$!
-
-# 報告書を1回で最終版まで作成（ドラフト→最終化の2段階を廃止）
-run_agent "doc-writer" "
-テーマ: $THEME
-計画サマリー: $(extract_summary "$PROJECT_DIR/plan.json")
-要件サマリー: $(extract_summary "$PROJECT_DIR/requirements.md")
-設計サマリー: $(extract_summary "$PROJECT_DIR/design.md")
-市場調査サマリー: $(extract_summary "$PROJECT_DIR/marketing-report.md")
-CS計画サマリー: $(extract_summary "$PROJECT_DIR/cs-report.md")
-
-プロジェクト最終報告書を $PROJECT_DIR/report.md に出力してください。
-※QAレポートは並行実行中のため未完了ですが、他の情報で報告書を完成させてください。
-
-- エグゼクティブサマリー
-- 成果物一覧と概要
-- 技術構成
-- 市場調査結果の反映状況
-- CS準備状況
-- 残課題・次のステップ
-" &
-PID_DOC=$!
-
-wait $PID_QA && add_exp "qa-reviewer" 20 "タスク完了"
-wait $PID_HR && add_exp "hr" 20 "タスク完了"
-wait $PID_DOC && add_exp "doc-writer" 20 "報告書完了"
-
-# 秘書部長（PM）— 最終サマリー + CEO秘書報告を並列
-log ""
-log "━━━ 最終報告（秘書部長 + CEO秘書 並列）━━━"
-
+# 秘書部長最終サマリー + CEO秘書報告を並列（QAと同時開始）
 run_agent "chief-secretary" "
 テーマ: $THEME
-QAレポートサマリー: $(extract_summary "$PROJECT_DIR/qa-report.md")
 人事評価サマリー: $(extract_summary "$PROJECT_DIR/hr-report.md")
 計画サマリー: $(extract_summary "$PROJECT_DIR/plan.json")
 報告書サマリー: $(extract_summary "$PROJECT_DIR/report.md")
@@ -541,14 +533,14 @@ QAレポートサマリー: $(extract_summary "$PROJECT_DIR/qa-report.md")
 3. 社長に確認いただきたい事項リスト
 4. 次のアクション推奨
 5. 社員の頑張りポイント（社長に褒めていただきたい点）
-" &
+※QAレポートは並行実行中のため、完了後に補完してください。
+" "" "5" &
 PID_CS_REPORT=$!
 
 run_agent "secretary" "
 テーマ: $THEME
 計画サマリー: $(extract_summary "$PROJECT_DIR/plan.json")
 報告書サマリー: $(extract_summary "$PROJECT_DIR/report.md")
-QAサマリー: $(extract_summary "$PROJECT_DIR/qa-report.md")
 
 オーナー（ユーザー）への最終報告を $PROJECT_DIR/secretary-report.md に出力してください:
 1. プロジェクト完了のお知らせ
@@ -558,12 +550,13 @@ QAサマリー: $(extract_summary "$PROJECT_DIR/qa-report.md")
 5. オーナーにご判断いただきたい事項
 6. 注意事項・リスク
 7. 次のプロジェクトへの提言
-" &
+" "" "5" &
 PID_SEC=$!
 
+wait $PID_QA && add_exp "qa-reviewer" 20 "タスク完了"
 wait $PID_CS_REPORT && add_exp "chief-secretary" 30 "最終サマリー作成"
 wait $PID_SEC && add_exp "secretary" 20 "タスク完了"
-record_phase "PHASE4" "$PHASE4_START"
+record_phase "PHASE3" "$PHASE3_START"
 
 # ── プロジェクト完了 ──
 PROJECT_END=$(date +%s)
@@ -574,7 +567,7 @@ jq ".total_duration_sec = $TOTAL_DURATION | .project_end = \"$(date -u +%Y-%m-%d
 
 log ""
 log "============================================"
-log "🎉 AI会社シミュレーション v3 完了"
+log "🎉 AI会社シミュレーション v4 完了"
 log "📁 成果物: $PROJECT_DIR"
 log "⏱️  総所要時間: ${TOTAL_DURATION}秒"
 log "📊 計測データ: $METRICS_FILE"
