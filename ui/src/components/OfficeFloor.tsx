@@ -15,6 +15,8 @@ interface Props {
   livePhase?: string;
   liveProgress?: number;
   liveAgentCount?: number;
+  // クリックで話す
+  onAgentClick?: (agentId: string, room: RoomId) => void;
 }
 
 /* ---- Room background SVG patterns ---- */
@@ -190,11 +192,12 @@ function AgentBadge({ agent, onSelect, isSelected, activity }: {
 }
 
 /* ---- Room component (ライブ対応) ---- */
-function Room({ roomId, label, icon, agents, onSelect, selectedId, bgType, isLive, activeRooms, activities }: {
+function Room({ roomId, label, icon, agents, onSelect, selectedId, bgType, isLive, activeRooms, activities, onAgentClick }: {
   roomId: RoomId; label: string; icon: string;
   agents: Agent[]; onSelect: (a: Agent) => void; selectedId?: string;
   bgType: 'president' | 'executive' | 'meeting' | 'break' | 'office';
   isLive?: boolean; activeRooms?: Set<RoomId>; activities?: Map<string, AgentActivity>;
+  onAgentClick?: (agentId: string, room: RoomId) => void;
 }) {
   const isLarge = roomId === 'open-office';
   const isRoomActive = isLive && activeRooms?.has(roomId);
@@ -234,7 +237,7 @@ function Room({ roomId, label, icon, agents, onSelect, selectedId, bgType, isLiv
         <div className={`p-2 flex flex-wrap gap-1 ${isLarge ? 'justify-center' : 'justify-center'}`}>
           {agents.length > 0 ? (
             agents.map(a => (
-              <AgentBadge key={a.id} agent={a} onSelect={() => onSelect(a)} isSelected={a.id === selectedId}
+              <AgentBadge key={a.id} agent={a} onSelect={() => { onSelect(a); onAgentClick?.(a.id, roomId); }} isSelected={a.id === selectedId}
                 activity={activities?.get(a.id)} />
             ))
           ) : (
@@ -284,7 +287,7 @@ function EnergyBar({ energy, phase, progress, agentCount }: {
 }
 
 /* ---- Main floor layout (ライブ対応) ---- */
-export function OfficeFloor({ agents, onSelect, selectedId, isLive, activities, activeRooms, energyLevel, livePhase, liveProgress, liveAgentCount }: Props) {
+export function OfficeFloor({ agents, onSelect, selectedId, isLive, activities, activeRooms, energyLevel, livePhase, liveProgress, liveAgentCount, onAgentClick }: Props) {
   // ライブモード時: activitiesのroomでエージェントを配置
   const byRoom = (id: RoomId) => {
     if (isLive && activities && activities.size > 0) {
@@ -312,29 +315,29 @@ export function OfficeFloor({ agents, onSelect, selectedId, isLive, activities, 
       <div className="grid grid-cols-2 gap-3">
         <Room roomId="president" label="社長室" icon="🏛️" bgType="president"
           agents={byRoom('president')} onSelect={onSelect} selectedId={selectedId}
-          isLive={isLive} activeRooms={activeRooms} activities={activities} />
+          isLive={isLive} activeRooms={activeRooms} activities={activities} onAgentClick={onAgentClick} />
         <Room roomId="executive" label="役員室" icon="🪑" bgType="executive"
           agents={byRoom('executive')} onSelect={onSelect} selectedId={selectedId}
-          isLive={isLive} activeRooms={activeRooms} activities={activities} />
+          isLive={isLive} activeRooms={activeRooms} activities={activities} onAgentClick={onAgentClick} />
       </div>
 
       {/* Mid: Meeting rooms + Break */}
       <div className="grid grid-cols-3 gap-3">
         <Room roomId="meeting-a" label="会議室A" icon="📊" bgType="meeting"
           agents={byRoom('meeting-a')} onSelect={onSelect} selectedId={selectedId}
-          isLive={isLive} activeRooms={activeRooms} activities={activities} />
+          isLive={isLive} activeRooms={activeRooms} activities={activities} onAgentClick={onAgentClick} />
         <Room roomId="meeting-b" label="会議室B" icon="💬" bgType="meeting"
           agents={byRoom('meeting-b')} onSelect={onSelect} selectedId={selectedId}
-          isLive={isLive} activeRooms={activeRooms} activities={activities} />
+          isLive={isLive} activeRooms={activeRooms} activities={activities} onAgentClick={onAgentClick} />
         <Room roomId="break" label="休憩室" icon="☕" bgType="break"
           agents={byRoom('break')} onSelect={onSelect} selectedId={selectedId}
-          isLive={isLive} activeRooms={activeRooms} activities={activities} />
+          isLive={isLive} activeRooms={activeRooms} activities={activities} onAgentClick={onAgentClick} />
       </div>
 
       {/* Bottom: Open office */}
       <Room roomId="open-office" label="オープンオフィス" icon="🖥️" bgType="office"
         agents={byRoom('open-office')} onSelect={onSelect} selectedId={selectedId}
-        isLive={isLive} activeRooms={activeRooms} activities={activities} />
+        isLive={isLive} activeRooms={activeRooms} activities={activities} onAgentClick={onAgentClick} />
     </div>
   );
 }

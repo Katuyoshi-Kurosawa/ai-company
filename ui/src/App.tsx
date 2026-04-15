@@ -187,6 +187,7 @@ export default function App() {
                   livePhase={officeActivity.phase}
                   liveProgress={officeActivity.progress}
                   liveAgentCount={officeActivity.liveAgentCount}
+                  onAgentClick={officeActivity.triggerSpeech}
                 />
               </div>
               <aside className="w-72 shrink-0">
