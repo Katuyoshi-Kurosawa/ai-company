@@ -35,6 +35,14 @@ function readBody(req) {
   });
 }
 
+// 実行中のジョブを返す（なければnull）
+function getActiveJob() {
+  for (const job of jobs.values()) {
+    if (job.status === 'running') return job;
+  }
+  return null;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
@@ -49,10 +57,38 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { status: 'ok', cwd: PROJECT_DIR });
   }
 
+  // 実行中ジョブの確認（UI再接続用）
+  if (url.pathname === '/active') {
+    const active = getActiveJob();
+    if (active) {
+      return json(res, 200, {
+        id: active.id,
+        type: active.type,
+        label: active.label || '',
+        status: active.status,
+        startedAt: active.startedAt,
+        lineCount: active.lines.length,
+      });
+    }
+    return json(res, 200, null);
+  }
+
   // Execute command
   if (url.pathname === '/execute' && req.method === 'POST') {
     const body = await readBody(req);
     const { type, args } = body;
+
+    // 多重実行防止: 実行中のジョブがあれば拒否し、既存ジョブIDを返す
+    const active = getActiveJob();
+    if (active) {
+      return json(res, 409, {
+        error: '既に実行中のジョブがあります',
+        activeJobId: active.id,
+        activeType: active.type,
+        activeLabel: active.label || '',
+        startedAt: active.startedAt,
+      });
+    }
 
     let cmd, cmdArgs;
     switch (type) {
@@ -73,8 +109,9 @@ const server = http.createServer(async (req, res) => {
     }
 
     const id = `job-${Date.now()}`;
+    const label = args.theme || args.agenda || args.subject || '';
     const job = {
-      id, type, status: 'running', startedAt: Date.now(),
+      id, type, label, status: 'running', startedAt: Date.now(),
       lines: [], listeners: new Set(),
     };
     jobs.set(id, job);
@@ -154,6 +191,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/jobs') {
     const list = [...jobs.values()].map(j => ({
       id: j.id, type: j.type, status: j.status,
+      label: j.label || '',
       startedAt: j.startedAt, finishedAt: j.finishedAt,
       lineCount: j.lines.length,
     }));

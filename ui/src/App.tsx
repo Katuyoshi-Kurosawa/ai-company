@@ -51,6 +51,15 @@ export default function App() {
   const isRunning = relay.status === 'running' || relay.status === 'connecting';
   const officeActivity = useOfficeActivity(relay.lines, executing);
 
+  // relay再接続検出: ページリロード後に実行中ジョブがあれば復元
+  useEffect(() => {
+    if (!executing && isRunning && relay.jobId) {
+      setExecuting(true);
+      setExecutionLabel('実行中（再接続）');
+      setView('office');
+    }
+  }, [isRunning, relay.jobId]);
+
   // 実行開始時にオフィスビューに自動切替
   useEffect(() => {
     if (executing && isRunning && view !== 'office') {
