@@ -16,18 +16,20 @@ interface Props {
 function detectPhase(lines: LogLine[]): { phase: string; progress: number } {
   const joined = lines.map(l => l.text).join('\n');
   const phases = [
-    { key: 'PHASE 1', phase: 'PHASE1: CEO計画＋マーケ＋CS＋企画', p: 10 },
-    { key: '秘書部長', phase: '秘書部長がレビュー中...', p: 18 },
-    { key: 'PHASE 2', phase: 'PHASE2: 要件定義＋R&D＋設計概要', p: 25 },
-    { key: '要件レビュー', phase: '要件レビューMTG中...', p: 35 },
-    { key: 'PHASE 3', phase: 'PHASE3: 詳細設計＋開発準備', p: 42 },
-    { key: '設計レビュー', phase: '設計レビュー中...', p: 50 },
-    { key: 'PHASE 4', phase: 'PHASE4: デザイン＋開発＋CS', p: 58 },
-    { key: 'コードレビュー', phase: 'コードレビューMTG中...', p: 70 },
-    { key: 'PHASE 5', phase: 'PHASE5: QA＋人事＋報告書ドラフト', p: 78 },
-    { key: 'PHASE 6', phase: 'PHASE6: 報告書最終化＋PMサマリー', p: 88 },
-    { key: 'CEO秘書', phase: 'CEO秘書が最終報告作成中...', p: 95 },
+    // v5 軽量モード
+    { key: '軽量モード', phase: '軽量: 秘書が応答中...', p: 50 },
+    // v5 中量モード
+    { key: '中量PHASE 1', phase: '中量1: 計画＋調査', p: 20 },
+    { key: '中量PHASE 2', phase: '中量2: 企画＋成果物作成', p: 60 },
+    // v5 重量モード (3フェーズ構成)
+    { key: 'PHASE 1', phase: 'PHASE1: 調査・計画（4並列）', p: 15 },
+    { key: 'PHASE 2', phase: 'PHASE2: 要件＋R&D＋設計＋レビュー', p: 40 },
+    { key: 'PHASE 3', phase: 'PHASE3: 実装＋QA＋評価＋報告', p: 65 },
+    { key: 'QA＋最終報告', phase: 'QA＋最終報告', p: 85 },
+    { key: '最終報告', phase: '最終報告作成中...', p: 90 },
+    // 共通
     { key: '全工程終了', phase: '完了!', p: 100 },
+    { key: '軽量モード完了', phase: '完了!', p: 100 },
   ];
   let current = { phase: '準備中...', p: 3 };
   for (const ph of phases) {

@@ -5,6 +5,7 @@ import { useCompanyStore, calcTeamPower, getTeamRank } from './hooks/useCompanyS
 import { useRelay } from './hooks/useRelay';
 import { useExecutionHistory } from './hooks/useExecutionHistory';
 import { OfficeFloor } from './components/OfficeFloor';
+import { useOfficeActivity } from './hooks/useOfficeActivity';
 import { OrgTree } from './components/OrgTree';
 import { ScoreBoard } from './components/ScoreBoard';
 import { AgentCard } from './components/AgentCard';
@@ -47,6 +48,15 @@ export default function App() {
   const [executionLabel, setExecutionLabel] = useState('');
   const currentRecordId = useRef<string | null>(null);
   const prevStatus = useRef(relay.status);
+  const isRunning = relay.status === 'running' || relay.status === 'connecting';
+  const officeActivity = useOfficeActivity(relay.lines, isRunning || relay.status === 'done');
+
+  // 実行開始時にオフィスビューに自動切替
+  useEffect(() => {
+    if (executing && isRunning && view !== 'office') {
+      setView('office');
+    }
+  }, [executing, isRunning]);
 
   // 実行完了時に履歴を保存
   useEffect(() => {
@@ -170,6 +180,13 @@ export default function App() {
                   agents={company.agents}
                   onSelect={setSelectedAgent}
                   selectedId={selectedAgent?.id}
+                  isLive={executing}
+                  activities={officeActivity.activities}
+                  activeRooms={officeActivity.activeRooms}
+                  energyLevel={officeActivity.energyLevel}
+                  livePhase={officeActivity.phase}
+                  liveProgress={officeActivity.progress}
+                  liveAgentCount={officeActivity.liveAgentCount}
                 />
               </div>
               <aside className="w-72 shrink-0">

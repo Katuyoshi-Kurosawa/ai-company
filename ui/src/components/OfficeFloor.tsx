@@ -1,10 +1,20 @@
 import type { Agent, RoomId } from '../types';
+import type { AgentActivity } from '../hooks/useOfficeActivity';
 import { PixelCharacter } from './PixelCharacter';
+import { SpeechBubble } from './SpeechBubble';
 
 interface Props {
   agents: Agent[];
   onSelect: (agent: Agent) => void;
   selectedId?: string;
+  // ライブモード用
+  isLive?: boolean;
+  activities?: Map<string, AgentActivity>;
+  activeRooms?: Set<RoomId>;
+  energyLevel?: number;
+  livePhase?: string;
+  liveProgress?: number;
+  liveAgentCount?: number;
 }
 
 /* ---- Room background SVG patterns ---- */
@@ -105,18 +115,49 @@ function RoomBg({ type }: { type: 'president' | 'executive' | 'meeting' | 'break
   );
 }
 
-/* ---- Agent in room ---- */
-function AgentBadge({ agent, onSelect, isSelected }: { agent: Agent; onSelect: () => void; isSelected: boolean }) {
+/* ---- アクション別CSSクラス ---- */
+function getActionStyle(action?: string): string {
+  switch (action) {
+    case 'working':     return 'animate-pulse ring-2 ring-blue-400/40';
+    case 'walking':     return 'animate-bounce opacity-70';
+    case 'celebrating': return 'ring-2 ring-yellow-400/60 scale-110';
+    case 'reviewing':   return 'ring-2 ring-purple-400/40';
+    case 'meeting':     return 'ring-2 ring-green-400/40';
+    case 'resting':     return 'opacity-60';
+    default:            return '';
+  }
+}
+
+/* ---- Agent in room (ライブ対応) ---- */
+function AgentBadge({ agent, onSelect, isSelected, activity }: {
+  agent: Agent; onSelect: () => void; isSelected: boolean;
+  activity?: AgentActivity;
+}) {
+  const actionStyle = activity ? getActionStyle(activity.action) : '';
+  const isCelebrating = activity?.action === 'celebrating';
+
   return (
     <button
       onClick={onSelect}
-      className={`group relative flex flex-col items-center p-1.5 rounded-lg transition-all cursor-pointer
+      className={`group relative flex flex-col items-center p-1.5 rounded-lg cursor-pointer
+        transition-all duration-500
         ${isSelected
           ? 'bg-white/20 ring-1 ring-white/40 shadow-lg shadow-blue-500/10 scale-105'
           : 'hover:bg-white/10'
-        }`}
+        }
+        ${actionStyle}`}
     >
-      <PixelCharacter visual={agent.visual} size="sm" active={agent.active} />
+      {/* 吹き出し */}
+      {activity?.speech && (
+        <SpeechBubble text={activity.speech} position="top" />
+      )}
+
+      {/* 🎉 エフェクト */}
+      {isCelebrating && (
+        <div className="absolute -top-1 -right-1 text-sm animate-bounce">🎉</div>
+      )}
+
+      <PixelCharacter visual={agent.visual} size="sm" active={activity ? activity.action !== 'resting' : agent.active} />
       <div className="text-center mt-0.5 px-1">
         <div className="text-[11px] font-bold text-gray-800 drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)] truncate max-w-[70px]">
           {agent.name}
@@ -124,40 +165,77 @@ function AgentBadge({ agent, onSelect, isSelected }: { agent: Agent; onSelect: (
         <div className="text-[9px] text-gray-600 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)] truncate max-w-[70px]">
           {agent.title}
         </div>
-        <span className={`inline-block w-1.5 h-1.5 rounded-full mt-0.5 ${agent.active ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+        {/* ライブ中はアクション状態を表示 */}
+        {activity && activity.action !== 'idle' ? (
+          <span className={`inline-block text-[8px] mt-0.5 px-1.5 py-0.5 rounded-full font-bold
+            ${activity.action === 'working' ? 'bg-blue-500/20 text-blue-700' :
+              activity.action === 'celebrating' ? 'bg-yellow-500/20 text-yellow-700' :
+              activity.action === 'walking' ? 'bg-orange-500/20 text-orange-700' :
+              activity.action === 'resting' ? 'bg-gray-500/20 text-gray-600' :
+              'bg-green-500/20 text-green-700'
+            }`}>
+            {activity.action === 'working' ? '作業中' :
+              activity.action === 'celebrating' ? '完了!' :
+              activity.action === 'walking' ? '移動中' :
+              activity.action === 'resting' ? '休憩' :
+              activity.action === 'reviewing' ? 'レビュー' :
+              activity.action === 'meeting' ? '会議中' : ''}
+          </span>
+        ) : (
+          <span className={`inline-block w-1.5 h-1.5 rounded-full mt-0.5 ${agent.active ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+        )}
       </div>
     </button>
   );
 }
 
-/* ---- Room component ---- */
-function Room({ roomId, label, icon, agents, onSelect, selectedId, bgType }: {
+/* ---- Room component (ライブ対応) ---- */
+function Room({ roomId, label, icon, agents, onSelect, selectedId, bgType, isLive, activeRooms, activities }: {
   roomId: RoomId; label: string; icon: string;
   agents: Agent[]; onSelect: (a: Agent) => void; selectedId?: string;
   bgType: 'president' | 'executive' | 'meeting' | 'break' | 'office';
+  isLive?: boolean; activeRooms?: Set<RoomId>; activities?: Map<string, AgentActivity>;
 }) {
   const isLarge = roomId === 'open-office';
+  const isRoomActive = isLive && activeRooms?.has(roomId);
 
   return (
-    <div className={`relative rounded-xl overflow-hidden border border-white/10 shadow-lg ${isLarge ? 'col-span-full' : ''}`}
+    <div className={`relative rounded-xl overflow-hidden border shadow-lg transition-all duration-500
+      ${isLarge ? 'col-span-full' : ''}
+      ${isRoomActive
+        ? 'border-blue-400/40 shadow-blue-500/20 shadow-xl'
+        : 'border-white/10'
+      }`}
       style={{ minHeight: isLarge ? 180 : 140 }}
     >
       {/* Anime background */}
       <RoomBg type={bgType}/>
 
+      {/* LIVE badge */}
+      {isRoomActive && (
+        <div className="absolute top-1.5 right-2 z-20 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/90 backdrop-blur-sm">
+          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          <span className="text-[9px] font-bold text-white tracking-wider">LIVE</span>
+        </div>
+      )}
+
       {/* Room label overlay */}
       <div className="relative z-10">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-black/20 backdrop-blur-sm border-b border-white/10">
+        <div className={`flex items-center gap-2 px-3 py-1.5 backdrop-blur-sm border-b transition-colors duration-500
+          ${isRoomActive ? 'bg-blue-900/30 border-blue-400/20' : 'bg-black/20 border-white/10'}`}>
           <span className="text-sm">{icon}</span>
           <span className="text-xs font-bold text-white drop-shadow-md">{label}</span>
-          <span className="text-[10px] ml-auto text-white/60">{agents.length}名</span>
+          <span className={`text-[10px] ml-auto ${isRoomActive ? 'text-blue-200' : 'text-white/60'}`}>
+            {agents.length}名
+          </span>
         </div>
 
         {/* Agents */}
         <div className={`p-2 flex flex-wrap gap-1 ${isLarge ? 'justify-center' : 'justify-center'}`}>
           {agents.length > 0 ? (
             agents.map(a => (
-              <AgentBadge key={a.id} agent={a} onSelect={() => onSelect(a)} isSelected={a.id === selectedId}/>
+              <AgentBadge key={a.id} agent={a} onSelect={() => onSelect(a)} isSelected={a.id === selectedId}
+                activity={activities?.get(a.id)} />
             ))
           ) : (
             <div className="text-center py-6 text-xs text-gray-500 drop-shadow">不在</div>
@@ -168,33 +246,95 @@ function Room({ roomId, label, icon, agents, onSelect, selectedId, bgType }: {
   );
 }
 
-/* ---- Main floor layout ---- */
-export function OfficeFloor({ agents, onSelect, selectedId }: Props) {
-  const byRoom = (id: RoomId) => agents.filter(a => a.room === id);
+/* ---- エネルギーバー ---- */
+function EnergyBar({ energy, phase, progress, agentCount }: {
+  energy: number; phase: string; progress: number; agentCount: number;
+}) {
+  const barColor = energy < 30 ? '#3b82f6' : energy < 70 ? '#eab308' : '#ef4444';
+
+  return (
+    <div className="rounded-xl p-3 mb-3 border border-white/10"
+      style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(8px)' }}>
+      <div className="flex items-center gap-3">
+        <span className="text-lg">⚡</span>
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-bold text-white/80">オフィス活性度</span>
+            <span className="text-xs text-white/50">稼働: {agentCount}/13名</span>
+          </div>
+          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-700"
+              style={{ width: `${energy}%`, background: barColor }} />
+          </div>
+        </div>
+        <span className="text-sm font-bold text-white/80 min-w-[36px] text-right">{energy}%</span>
+      </div>
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-[11px] text-white/60">{phase}</span>
+        <div className="flex items-center gap-2">
+          <div className="w-20 h-1 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-indigo-400 transition-all duration-700"
+              style={{ width: `${progress}%` }} />
+          </div>
+          <span className="text-[10px] text-white/40">{progress}%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Main floor layout (ライブ対応) ---- */
+export function OfficeFloor({ agents, onSelect, selectedId, isLive, activities, activeRooms, energyLevel, livePhase, liveProgress, liveAgentCount }: Props) {
+  // ライブモード時: activitiesのroomでエージェントを配置
+  const byRoom = (id: RoomId) => {
+    if (isLive && activities && activities.size > 0) {
+      return agents.filter(a => {
+        const act = activities.get(a.id);
+        return act ? act.room === id : a.room === id;
+      });
+    }
+    return agents.filter(a => a.room === id);
+  };
 
   return (
     <div className="space-y-3">
+      {/* エネルギーバー（ライブ時のみ） */}
+      {isLive && (
+        <EnergyBar
+          energy={energyLevel ?? 0}
+          phase={livePhase ?? '待機中'}
+          progress={liveProgress ?? 0}
+          agentCount={liveAgentCount ?? 0}
+        />
+      )}
+
       {/* Top: President + Executive */}
       <div className="grid grid-cols-2 gap-3">
         <Room roomId="president" label="社長室" icon="🏛️" bgType="president"
-          agents={byRoom('president')} onSelect={onSelect} selectedId={selectedId}/>
+          agents={byRoom('president')} onSelect={onSelect} selectedId={selectedId}
+          isLive={isLive} activeRooms={activeRooms} activities={activities} />
         <Room roomId="executive" label="役員室" icon="🪑" bgType="executive"
-          agents={byRoom('executive')} onSelect={onSelect} selectedId={selectedId}/>
+          agents={byRoom('executive')} onSelect={onSelect} selectedId={selectedId}
+          isLive={isLive} activeRooms={activeRooms} activities={activities} />
       </div>
 
       {/* Mid: Meeting rooms + Break */}
       <div className="grid grid-cols-3 gap-3">
         <Room roomId="meeting-a" label="会議室A" icon="📊" bgType="meeting"
-          agents={byRoom('meeting-a')} onSelect={onSelect} selectedId={selectedId}/>
+          agents={byRoom('meeting-a')} onSelect={onSelect} selectedId={selectedId}
+          isLive={isLive} activeRooms={activeRooms} activities={activities} />
         <Room roomId="meeting-b" label="会議室B" icon="💬" bgType="meeting"
-          agents={byRoom('meeting-b')} onSelect={onSelect} selectedId={selectedId}/>
+          agents={byRoom('meeting-b')} onSelect={onSelect} selectedId={selectedId}
+          isLive={isLive} activeRooms={activeRooms} activities={activities} />
         <Room roomId="break" label="休憩室" icon="☕" bgType="break"
-          agents={byRoom('break')} onSelect={onSelect} selectedId={selectedId}/>
+          agents={byRoom('break')} onSelect={onSelect} selectedId={selectedId}
+          isLive={isLive} activeRooms={activeRooms} activities={activities} />
       </div>
 
       {/* Bottom: Open office */}
       <Room roomId="open-office" label="オープンオフィス" icon="🖥️" bgType="office"
-        agents={byRoom('open-office')} onSelect={onSelect} selectedId={selectedId}/>
+        agents={byRoom('open-office')} onSelect={onSelect} selectedId={selectedId}
+        isLive={isLive} activeRooms={activeRooms} activities={activities} />
     </div>
   );
 }
