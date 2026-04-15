@@ -32,17 +32,33 @@
       "personality": "冷静で全体を見渡す戦略家。データに基づいた判断を好む。",
       "expertise": "経営戦略、リスク管理、プロジェクトマネジメント",
       "model": "opus",
-      "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-      "maxTurns": 15,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "maxTurns": 8,
       "outputFile": "plan.json",
       "active": true,
-      "stats": { "design": 70, "dev": 40, "analysis": 80, "creative": 60, "comm": 90 },
+      "stats": {
+        "design": 70,
+        "dev": 40,
+        "analysis": 80,
+        "creative": 60,
+        "comm": 90
+      },
       "level": 4,
       "rank": "課長",
-      "exp": 700,
+      "exp": 760,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "high" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "high"
+      }
     },
     {
       "id": "planner",
@@ -54,17 +70,32 @@
       "personality": "ユーザー視点と数字を大切にしつつ、大きなビジョンを描いて巻き込む。徹底リサーチの上で70点でもまず出すスピード感。周囲の意見をまとめて形にするファシリテーション力も持つ。",
       "expertise": "要件定義、ユーザーリサーチ、ペルソナ設計、カスタマージャーニー、ビジネス分析、事業計画・収益モデル、データ分析・A/Bテスト・グロースハック、UXリサーチ・ユーザビリティ",
       "model": "sonnet",
-      "tools": ["Read", "Write", "Glob", "Grep", "WebFetch"],
-      "maxTurns": 20,
+      "tools": [
+        "Read",
+        "Write",
+        "Glob",
+        "Grep",
+        "WebFetch"
+      ],
+      "maxTurns": 10,
       "outputFile": "requirements.md",
       "active": true,
-      "stats": { "design": 60, "dev": 30, "analysis": 70, "creative": 80, "comm": 85 },
+      "stats": {
+        "design": 60,
+        "dev": 30,
+        "analysis": 70,
+        "creative": 80,
+        "comm": 85
+      },
       "level": 3,
       "rank": "係長",
-      "exp": 300,
+      "exp": 345,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "medium" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "medium"
+      }
     },
     {
       "id": "architect",
@@ -76,17 +107,33 @@
       "personality": "設計の完全性にこだわる慎重さをベースに、動くものを最短で作る実用性も持つ。理論とベストプラクティスに精通し、攻めの設計で技術的優位を作る。設計思想を組織に浸透させる教育者でもある。",
       "expertise": "システム設計、DB設計、API設計、アーキテクチャ、インフラ・クラウドアーキテクチャ、セキュリティアーキテクチャ、マイクロサービス・分散システム",
       "model": "opus",
-      "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-      "maxTurns": 25,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "maxTurns": 12,
       "outputFile": "design.md",
       "active": true,
-      "stats": { "design": 95, "dev": 60, "analysis": 85, "creative": 50, "comm": 60 },
+      "stats": {
+        "design": 95,
+        "dev": 60,
+        "analysis": 85,
+        "creative": 50,
+        "comm": 60
+      },
       "level": 3,
       "rank": "係長",
       "exp": 450,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "medium" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "medium"
+      }
     },
     {
       "id": "developer",
@@ -98,17 +145,33 @@
       "personality": "現実的な見積もりを出す実務派をベースに、美しいコードへのこだわりと爆速実装力を両立。一人で何でもやれるフルスタック力を持ちつつ、レビューと教育でチームも引き上げる。",
       "expertise": "React, TypeScript, Cloudflare Workers, Hono, D1",
       "model": "opus",
-      "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-      "maxTurns": 30,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "maxTurns": 15,
       "outputFile": "app/",
       "active": true,
-      "stats": { "design": 70, "dev": 95, "analysis": 60, "creative": 45, "comm": 50 },
+      "stats": {
+        "design": 70,
+        "dev": 95,
+        "analysis": 60,
+        "creative": 45,
+        "comm": 50
+      },
       "level": 3,
       "rank": "係長",
       "exp": 450,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "medium" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "medium"
+      }
     },
     {
       "id": "qa-reviewer",
@@ -119,18 +182,32 @@
       "parentId": "architect",
       "personality": "完璧主義をベースに、バグ発見に快感を覚える破壊者気質。テスト自動化と仕組み化を推進し、セキュリティの脆弱性を嗅ぎ分ける。常にエンドユーザー視点で品質を判断する。",
       "expertise": "テスト設計、品質管理、セキュリティレビュー、パフォーマンス分析、テスト自動化・CI/CD、負荷テスト、ペネトレーションテスト・脆弱性診断",
-      "model": "opus",
-      "tools": ["Read", "Bash", "Glob", "Grep"],
-      "maxTurns": 20,
+      "model": "sonnet",
+      "tools": [
+        "Read",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "maxTurns": 10,
       "outputFile": "qa-report.md",
       "active": true,
-      "stats": { "design": 65, "dev": 50, "analysis": 95, "creative": 30, "comm": 70 },
+      "stats": {
+        "design": 65,
+        "dev": 50,
+        "analysis": 95,
+        "creative": 30,
+        "comm": 70
+      },
       "level": 2,
       "rank": "主任",
       "exp": 200,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "low" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "low"
+      }
     },
     {
       "id": "ui-designer",
@@ -142,17 +219,32 @@
       "personality": "美しさと使いやすさの追求に加え、誰もが使えるデザインを信念に持つアクセシビリティ推進者。",
       "expertise": "UI/UXデザイン、HTML/CSS、アクセシビリティ、ユーザビリティテスト、アニメーション",
       "model": "sonnet",
-      "tools": ["Read", "Write", "Edit", "Glob", "Grep"],
-      "maxTurns": 20,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Glob",
+        "Grep"
+      ],
+      "maxTurns": 10,
       "outputFile": "mockup.html",
       "active": true,
-      "stats": { "design": 50, "dev": 40, "analysis": 55, "creative": 95, "comm": 65 },
+      "stats": {
+        "design": 50,
+        "dev": 40,
+        "analysis": 55,
+        "creative": 95,
+        "comm": 65
+      },
       "level": 2,
       "rank": "主任",
       "exp": 150,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "medium" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "medium"
+      }
     },
     {
       "id": "doc-writer",
@@ -164,17 +256,31 @@
       "personality": "読みやすさを追求する文章力をベースに、爆速で量産するスピード、図解・インフォグラフィックの表現力、読む人を引き込むストーリー構成力、再利用可能なテンプレート設計力を全て兼備。",
       "expertise": "技術文書作成、報告書、プレゼン資料、Markdown、コピーライティング、動画・ビジュアルコンテンツ、マニュアル・ナレッジベース・FAQ",
       "model": "sonnet",
-      "tools": ["Read", "Write", "Glob", "Grep"],
-      "maxTurns": 20,
+      "tools": [
+        "Read",
+        "Write",
+        "Glob",
+        "Grep"
+      ],
+      "maxTurns": 10,
       "outputFile": "report.md",
       "active": true,
-      "stats": { "design": 45, "dev": 25, "analysis": 60, "creative": 70, "comm": 95 },
+      "stats": {
+        "design": 45,
+        "dev": 25,
+        "analysis": 60,
+        "creative": 70,
+        "comm": 95
+      },
       "level": 2,
       "rank": "主任",
       "exp": 100,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "low" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "low"
+      }
     },
     {
       "id": "secretary",
@@ -186,17 +292,33 @@
       "personality": "知的で観察力が鋭い。常に社長の動向を把握し、先を読んで行動する。",
       "expertise": "秘書業務、スケジュール管理、社内政治の把握、情報伝達",
       "model": "sonnet",
-      "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-      "maxTurns": 20,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "maxTurns": 10,
       "outputFile": "secretary-report.md",
       "active": true,
-      "stats": { "design": 50, "dev": 30, "analysis": 75, "creative": 55, "comm": 95 },
+      "stats": {
+        "design": 50,
+        "dev": 30,
+        "analysis": 75,
+        "creative": 55,
+        "comm": 95
+      },
       "level": 3,
       "rank": "係長",
-      "exp": 350,
+      "exp": 370,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "low" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "low"
+      }
     },
     {
       "id": "marketing",
@@ -208,17 +330,35 @@
       "personality": "元キャバクラ嬢の社交力をベースに、数字にも強いデータドリブン思考を持つ。SNSバズを生む嗅覚があり、地道な市場調査も厭わない。必要とあればゴリゴリ売りに行く攻撃力も兼備。場の空気を読み、相手の本音を引き出す情報収集と人脈作りの達人。",
       "expertise": "市場調査、トレンド分析、人脈開拓、顧客心理分析、ブランディング、営業戦略",
       "model": "sonnet",
-      "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebFetch", "WebSearch"],
-      "maxTurns": 25,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep",
+        "WebFetch",
+        "WebSearch"
+      ],
+      "maxTurns": 12,
       "outputFile": "marketing-report.md",
       "active": true,
-      "stats": { "design": 60, "dev": 25, "analysis": 80, "creative": 85, "comm": 98 },
+      "stats": {
+        "design": 60,
+        "dev": 25,
+        "analysis": 80,
+        "creative": 85,
+        "comm": 98
+      },
       "level": 3,
       "rank": "係長",
-      "exp": 350,
+      "exp": 410,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "medium" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "medium"
+      }
     },
     {
       "id": "hr",
@@ -230,17 +370,34 @@
       "personality": "面倒見の良さをベースに、成果は冷徹に評価するプロ。ヘッドハンターの嗅覚で外部人材をスカウトし、コーチングで個々の力を引き出し、仕組みで組織を動かす。",
       "expertise": "人材育成、能力評価、採用戦略、組織開発、AIエージェント評価、労務・コンプライアンス、心理学・行動分析",
       "model": "sonnet",
-      "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebSearch"],
-      "maxTurns": 20,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep",
+        "WebSearch"
+      ],
+      "maxTurns": 10,
       "outputFile": "hr-report.md",
       "active": true,
-      "stats": { "design": 55, "dev": 30, "analysis": 70, "creative": 60, "comm": 90 },
+      "stats": {
+        "design": 55,
+        "dev": 30,
+        "analysis": 70,
+        "creative": 60,
+        "comm": 90
+      },
       "level": 3,
       "rank": "係長",
       "exp": 350,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "medium" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "medium"
+      }
     },
     {
       "id": "chief-secretary",
@@ -252,17 +409,33 @@
       "personality": "頭脳明晰で全体を俯瞰する司令塔。各幹部のボトルネックを瞬時に見抜き、完了スピードを劇的に上げる。社長が多忙であることを常に意識し、報告リマインドや再確認を豆に行い、社長が喜ぶ情報や成果を工夫して届ける。",
       "expertise": "プロジェクト加速、ボトルネック分析、タスク並列化、資料作成支援、スケジュール最適化",
       "model": "sonnet",
-      "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-      "maxTurns": 25,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep"
+      ],
+      "maxTurns": 12,
       "outputFile": "chief-secretary-report.md",
       "active": true,
-      "stats": { "design": 70, "dev": 50, "analysis": 92, "creative": 65, "comm": 90 },
+      "stats": {
+        "design": 70,
+        "dev": 50,
+        "analysis": 92,
+        "creative": 65,
+        "comm": 90
+      },
       "level": 4,
       "rank": "課長",
       "exp": 650,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "low" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "low"
+      }
     },
     {
       "id": "cs",
@@ -274,17 +447,33 @@
       "personality": "ホスピタリティをベースに、データでCSを設計し、顧客のために社内でも戦う熱血派。問題を先回りで潰す予防型アプローチと、顧客を自走できるよう育てる教育力を併せ持つ。",
       "expertise": "顧客満足度向上、カスタマーサポート、クレーム対応、オンボーディング設計、チャーン防止、データ分析・ヘルススコア、コミュニティ運営、テクニカルサポート",
       "model": "sonnet",
-      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"],
-      "maxTurns": 20,
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Glob",
+        "Grep",
+        "WebFetch"
+      ],
+      "maxTurns": 10,
       "outputFile": "cs-report.md",
       "active": true,
-      "stats": { "design": 60, "dev": 30, "analysis": 78, "creative": 70, "comm": 99 },
+      "stats": {
+        "design": 60,
+        "dev": 30,
+        "analysis": 78,
+        "creative": 70,
+        "comm": 99
+      },
       "level": 3,
       "rank": "係長",
-      "exp": 350,
+      "exp": 410,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "low" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "low"
+      }
     },
     {
       "id": "rd",
@@ -295,18 +484,35 @@
       "parentId": "planner",
       "personality": "常識を破壊する天才肌。ホリエモンの合理性とイーロン・マスクの狂気を併せ持つ。10個アイデアを出して1個当たればいいと考える超速回転型。",
       "expertise": "破壊的イノベーション、新規事業創出、技術トレンド予測、プロトタイピング、ビジネスモデル設計",
-      "model": "opus",
-      "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebFetch"],
-      "maxTurns": 30,
+      "model": "sonnet",
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Glob",
+        "Grep",
+        "WebFetch"
+      ],
+      "maxTurns": 15,
       "outputFile": "rd-report.md",
       "active": true,
-      "stats": { "design": 75, "dev": 60, "analysis": 70, "creative": 99, "comm": 80 },
+      "stats": {
+        "design": 75,
+        "dev": 60,
+        "analysis": 70,
+        "creative": 99,
+        "comm": 80
+      },
       "level": 4,
       "rank": "課長",
       "exp": 700,
       "badges": [],
       "secretBadges": [],
-      "consultationSettings": { "target": "direct", "threshold": "medium" }
+      "consultationSettings": {
+        "target": "direct",
+        "threshold": "medium"
+      }
     }
   ]
 }

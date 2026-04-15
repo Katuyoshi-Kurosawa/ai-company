@@ -16,6 +16,7 @@ import { MtgScreen } from './components/MtgScreen';
 import { EscalationScreen } from './components/EscalationScreen';
 import { CommandCenter } from './components/CommandCenter';
 import { ExecutionPanel, ExecutionIndicator } from './components/ExecutionPanel';
+import { QuickInputBar, CommandPalette } from './components/QuickCommand';
 
 declare const __BUILD_TIME__: string;
 
@@ -91,6 +92,18 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Quick input bar */}
+          <QuickInputBar
+            connected={relay.connected}
+            onExecute={(label, type, args) => {
+              relay.execute(type, args);
+              setExecutionLabel(label);
+              setExecuting(true);
+              currentRecordId.current = execHistory.startRecord(type, label, args);
+            }}
+            theme={theme}
+          />
+
           {/* Execution indicator in header */}
           {executing && (
             <ExecutionIndicator
@@ -293,6 +306,19 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Command Palette (Cmd+K) */}
+      <CommandPalette
+        connected={relay.connected}
+        onExecute={(label, type, args) => {
+          relay.execute(type, args);
+          setExecutionLabel(label);
+          setExecuting(true);
+          currentRecordId.current = execHistory.startRecord(type, label, args);
+        }}
+        history={execHistory.records}
+        theme={theme}
+      />
 
       {/* Execution Panel (bottom bar) */}
       {executing && (

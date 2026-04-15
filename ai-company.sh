@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # ============================================================
-# AI会社シミュレーション — メインオーケストレーター（16名対応版）
+# AI会社シミュレーション — メインオーケストレーター v3
+# 高速化: テーマ判定・4フェーズ統合・MTG廃止・モデル最適化
 # Usage: ./ai-company.sh "テーマ"
 # ============================================================
 
@@ -12,12 +13,15 @@ PROJECT_DIR="./output/${TIMESTAMP}"
 CONFIG="./company-config.json"
 AGENTS_DIR="./.claude/agents"
 LOG_DIR="./logs"
+METRICS_FILE="$PROJECT_DIR/metrics.json"
+PROJECT_START=$(date +%s)
 
 mkdir -p "$PROJECT_DIR" "$PROJECT_DIR/mtg" "$PROJECT_DIR/escalation" "$LOG_DIR"
 
 # ── ユーティリティ ──────────────────────────────────────────
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_DIR/${TIMESTAMP}.log"; }
+
 notify_slack() {
   local WEBHOOK_URL="${SLACK_WEBHOOK_URL:-}"
   if [ -n "$WEBHOOK_URL" ]; then
@@ -43,6 +47,63 @@ add_exp() {
   log "💫 ${agent_id}: +${amount} EXP ($reason) → 合計 ${new_exp}"
 }
 
+read_file_or_empty() {
+  cat "$1" 2>/dev/null || echo '未生成'
+}
+
+# ── 計測ダッシュボード ────────────────────────────────────────
+
+echo '{"project_start":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'","theme":"'"$THEME"'","agents":[],"phases":[]}' > "$METRICS_FILE"
+
+record_agent_start() {
+  local agent_id="$1"
+  eval "AGENT_START_${agent_id//-/_}=$(date +%s)"
+}
+
+record_agent_end() {
+  local agent_id="$1"
+  local var_name="AGENT_START_${agent_id//-/_}"
+  local start_time="${!var_name:-$(date +%s)}"
+  local end_time=$(date +%s)
+  local duration=$((end_time - start_time))
+  local model
+  model=$(get_agent_field "$agent_id" ".model")
+  local tmp
+  tmp=$(mktemp)
+  jq ".agents += [{\"id\":\"$agent_id\",\"model\":\"$model\",\"duration_sec\":$duration,\"start\":$start_time,\"end\":$end_time}]" "$METRICS_FILE" > "$tmp" && mv "$tmp" "$METRICS_FILE"
+  log "⏱️  ${agent_id}: ${duration}秒（${model}）"
+}
+
+record_phase() {
+  local phase_name="$1" phase_start="$2"
+  local phase_end=$(date +%s)
+  local duration=$((phase_end - phase_start))
+  local tmp
+  tmp=$(mktemp)
+  jq ".phases += [{\"name\":\"$phase_name\",\"duration_sec\":$duration}]" "$METRICS_FILE" > "$tmp" && mv "$tmp" "$METRICS_FILE"
+  log "📊 ${phase_name}: ${duration}秒"
+}
+
+# ── コンテキスト管理 ──────────────────────────────────────────
+
+extract_summary() {
+  local file="$1"
+  if [ ! -f "$file" ]; then echo '未生成'; return; fi
+  local summary
+  summary=$(awk '/^## サマリー/,/^## [^サ]/' "$file" | head -50)
+  if [ -z "$summary" ]; then
+    head -100 "$file"
+  else
+    echo "$summary"
+  fi
+}
+
+read_full() {
+  head -300 "$1" 2>/dev/null || echo '未生成'
+}
+
+# ── 計測付き run_agent ───────────────────────────────────────
+
 run_agent() {
   local agent_id="$1"
   local prompt="$2"
@@ -60,9 +121,10 @@ run_agent() {
   local agent_name
   agent_name=$(get_agent_field "$agent_id" ".icon + \" \" + .name + \" \" + .title")
 
-  log "🚀 ${agent_name} 開始"
+  record_agent_start "$agent_id"
+  log "🚀 ${agent_name} 開始（${model}）"
 
-  claude -p \
+  env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p \
     --model "$model" \
     --system-prompt "$(cat "$system_prompt_file")" \
     --max-turns "$max_turns" \
@@ -70,28 +132,114 @@ run_agent() {
     "$prompt" \
     2>&1 | tee -a "$LOG_DIR/${TIMESTAMP}_${agent_id}.log"
 
+  record_agent_end "$agent_id"
   log "✅ ${agent_name} 完了"
 }
 
-read_file_or_empty() {
-  cat "$1" 2>/dev/null || echo '未生成'
+# ── 非同期レビュー ────────────────────────────────────────────
+
+run_async_review() {
+  local review_name="$1"
+  local context="$2"
+  log "📝 非同期レビュー: ${review_name}"
+  run_agent "chief-secretary" "
+あなたはPM（プロジェクトマネージャー）として、以下の成果物の非同期レビューを実施してください。
+
+## レビュー対象
+${review_name}
+
+## 成果物
+${context}
+
+以下を $PROJECT_DIR/review-${review_name}.md に出力してください:
+1. 成果物の品質評価（A/B/C/D）
+2. 問題点・懸念事項（あれば）
+3. 各部門へのフィードバック
+4. 承認判定（GO / 要修正）
+5. 要修正の場合、具体的な修正指示
+
+※重大な問題がなければGO判定とし、次フェーズに進めてください。
+"
 }
 
-# ── ステップ実行 ──────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+# 改善1: テーマ軽重判定 — 挨拶・簡単な質問は秘書だけで即応答
+# ══════════════════════════════════════════════════════════════
+
+is_lightweight_theme() {
+  local theme_lower
+  theme_lower=$(echo "$THEME" | tr '[:upper:]' '[:lower:]')
+  # 挨拶・簡単な質問パターン
+  case "$theme_lower" in
+    *おはよう*|*こんにちは*|*こんばんは*|*お疲れ*|*ありがとう*|*よろしく*)
+      return 0 ;;
+    *調子*どう*|*元気*|*天気*|*雑談*)
+      return 0 ;;
+    hello*|hi\ *|hey*|good\ morning*|thanks*)
+      return 0 ;;
+  esac
+  # 10文字以下で「？」「?」で終わる簡単な質問
+  if [ ${#THEME} -le 15 ] && [[ "$THEME" == *？ || "$THEME" == *\? ]]; then
+    return 0
+  fi
+  return 1
+}
+
+if is_lightweight_theme; then
+  log "============================================"
+  log "🏢 AI会社シミュレーション v3 起動（軽量モード）"
+  log "📌 テーマ: $THEME"
+  log "============================================"
+  log ""
+  log "━━━ 軽量モード: CEO秘書が応答 ━━━"
+
+  run_agent "secretary" "
+テーマ: $THEME
+
+オーナー（ユーザー）から上記のメッセージがありました。
+これはプロジェクト指示ではなく、挨拶や簡単なやりとりです。
+
+秘書として適切に応答し、$PROJECT_DIR/secretary-report.md に出力してください。
+- 社長や社員の近況を交えた温かい返答
+- 必要に応じて本日の予定や進行中の案件を簡潔に報告
+- 何かプロジェクト指示があればお気軽にどうぞ、と添える
+"
+  add_exp "secretary" 10 "軽量応答"
+
+  PROJECT_END=$(date +%s)
+  TOTAL_DURATION=$((PROJECT_END - PROJECT_START))
+  tmp=$(mktemp)
+  jq ".total_duration_sec = $TOTAL_DURATION | .project_end = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" | .mode = \"lightweight\"" "$METRICS_FILE" > "$tmp" && mv "$tmp" "$METRICS_FILE"
+
+  log ""
+  log "============================================"
+  log "🎉 軽量モード完了"
+  log "⏱️  所要時間: ${TOTAL_DURATION}秒"
+  log "============================================"
+
+  notify_slack "💬 軽量応答完了\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒"
+  exit 0
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 通常モード: 4フェーズ構成（v2の6フェーズから統合）
+# ══════════════════════════════════════════════════════════════
 
 log "============================================"
-log "🏢 AI会社シミュレーション 起動（16名体制）"
+log "🏢 AI会社シミュレーション v3 起動"
+log "   4フェーズ構成・MTG廃止・モデル最適化"
 log "📌 テーマ: $THEME"
 log "📁 出力先: $PROJECT_DIR"
 log "============================================"
 
 # ================================================================
-# PHASE 1: CEO計画 + 並列で情報収集・市場調査
+# PHASE 1: 調査・計画（CEO + マーケ + CS + 企画 4並列）
+#          → 秘書部長レビュー
 # ================================================================
+PHASE1_START=$(date +%s)
 log ""
-log "━━━ PHASE 1: CEO計画 ＋ マーケ調査・UXリサーチ（並列）━━━"
+log "━━━ PHASE 1: 調査・計画（4並列）━━━"
 
-# CEO — プロジェクト計画
 run_agent "ceo" "
 テーマ: $THEME
 
@@ -106,284 +254,286 @@ run_agent "ceo" "
   \"risks\": [\"リスク1\"],
   \"success_criteria\": [\"基準1\"]
 }
+
+※ファイル先頭に ## サマリー セクションを付けること（後続フェーズの参照用）
 " &
 PID_CEO=$!
 
-# マーケティング部長 — 市場調査（並列）
 run_agent "marketing" "
 テーマ: $THEME
 
-テーマに関する市場調査を実施し、$PROJECT_DIR/marketing-report.md に出力してください:
+テーマに関する市場調査を実施し、$PROJECT_DIR/marketing-report.md に出力してください。
+※冒頭に必ず ## サマリー セクション（5行以内の要約）を付けること。
+
+本文に含める内容:
 - 市場トレンド・競合動向
 - ターゲット顧客分析
 - 差別化ポイントの提案
 - 参入リスクと機会
-- SNS・口コミでの関連トピック
 " &
 PID_MARKETING=$!
 
-# UXリサーチ部長 — ユーザー調査（並列）
-run_agent "ux-research" "
+run_agent "cs" "
 テーマ: $THEME
 
-テーマに関するUXリサーチを実施し、$PROJECT_DIR/ux-research-report.md に出力してください:
-- 想定ペルソナ（3-5人）
-- カスタマージャーニーマップ
-- ユーザーの課題・ペインポイント
-- 競合プロダクトのUX分析
-- アクセシビリティ配慮事項
+テーマに関するカスタマーサクセス想定シナリオを $PROJECT_DIR/cs-scenarios.md に出力してください。
+※冒頭に必ず ## サマリー セクション（5行以内の要約）を付けること。
+
+- 想定されるユーザーの質問・困りごと（10件以上）
+- 初期FAQドラフト
+- オンボーディングの流れ（概要）
+- 解約リスクが高いユーザーパターン
 " &
-PID_UX=$!
-
-wait $PID_CEO && add_exp "ceo" 20 "タスク完了"
-wait $PID_MARKETING && add_exp "marketing" 20 "タスク完了"
-wait $PID_UX && add_exp "ux-research" 20 "タスク完了"
-
-# 秘書部長 — CEO計画の要約＆リマインド作成
-log ""
-log "━━━ 秘書部長：計画サマリー＆各部門へのリマインド作成 ━━━"
-run_agent "chief-secretary" "
-テーマ: $THEME
-CEO計画: $(read_file_or_empty "$PROJECT_DIR/plan.json")
-市場調査: $(read_file_or_empty "$PROJECT_DIR/marketing-report.md")
-UXリサーチ: $(read_file_or_empty "$PROJECT_DIR/ux-research-report.md")
-
-以下を $PROJECT_DIR/chief-secretary-report.md に出力してください:
-1. CEO計画の要約（社長が一目で確認できる形式）
-2. 市場調査・UXリサーチの要点まとめ
-3. 各部門への指示・リマインド事項
-4. 社長への報告ポイント（朗報は最初に）
-5. 注意すべきリスク・ボトルネック予測
-"
-add_exp "chief-secretary" 20 "タスク完了"
-
-# ── キックオフMTG ──
-log ""
-log "━━━ キックオフMTG ━━━"
-./ai-mtg.sh kickoff "plan.json のレビュー — テーマ: $THEME" 2 chair "$PROJECT_DIR" || log "⚠️  MTGスキップ"
-
-# ================================================================
-# PHASE 2: 要件定義 + R&Dアイデア出し（並列）
-# ================================================================
-log ""
-log "━━━ PHASE 2: 企画部長 要件定義 ＋ R&D アイデア出し（並列）━━━"
+PID_CS=$!
 
 run_agent "planner" "
 テーマ: $THEME
-CEOの計画: $(read_file_or_empty "$PROJECT_DIR/plan.json")
-市場調査: $(read_file_or_empty "$PROJECT_DIR/marketing-report.md")
-UXリサーチ: $(read_file_or_empty "$PROJECT_DIR/ux-research-report.md")
 
-要件定義書を $PROJECT_DIR/requirements.md に出力してください。
-以下を含めること:
-- 背景・目的（市場調査・UXリサーチの知見を反映）
+テーマに関するペルソナ・ユーザー調査を $PROJECT_DIR/persona-research.md に出力してください。
+※冒頭に必ず ## サマリー セクション（5行以内の要約）を付けること。
+
+本文に含める内容:
+- 想定ペルソナ（3-5人）の詳細プロフィール
+- カスタマージャーニーマップ（認知→検討→導入→定着）
+- ユーザーの課題・ペインポイント分析
+- 競合プロダクトのUX比較
+- アクセシビリティ配慮事項
+" &
+PID_PLANNER_P1=$!
+
+wait $PID_CEO && add_exp "ceo" 20 "タスク完了"
+wait $PID_MARKETING && add_exp "marketing" 20 "タスク完了"
+wait $PID_CS && add_exp "cs" 20 "タスク完了"
+wait $PID_PLANNER_P1 && add_exp "planner" 15 "ペルソナ調査完了"
+
+# 秘書部長 — PM: キックオフレビュー（非同期、MTG不要）
+log ""
+log "━━━ 秘書部長（PM）: キックオフレビュー ━━━"
+run_agent "chief-secretary" "
+テーマ: $THEME
+CEO計画: $(read_full "$PROJECT_DIR/plan.json")
+市場調査サマリー: $(extract_summary "$PROJECT_DIR/marketing-report.md")
+CS想定サマリー: $(extract_summary "$PROJECT_DIR/cs-scenarios.md")
+ペルソナ調査サマリー: $(extract_summary "$PROJECT_DIR/persona-research.md")
+
+あなたはPM（プロジェクトマネージャー）です。以下を $PROJECT_DIR/chief-secretary-report.md に出力してください:
+1. CEO計画の要約（30秒で全体把握できる形式）
+2. 市場調査・CS想定・ペルソナ調査の要点統合
+3. 各部門への指示・期待事項
+4. リスク・ボトルネック予測
+5. キックオフレビュー判定: GO / 要修正
+"
+add_exp "chief-secretary" 20 "タスク完了"
+record_phase "PHASE1" "$PHASE1_START"
+
+# ================================================================
+# PHASE 2: 要件定義 + R&D + 設計（3並列 → 非同期レビュー）
+#          旧PHASE2+3を統合。概要設計と詳細設計を1回で完了。
+# ================================================================
+PHASE2_START=$(date +%s)
+log ""
+log "━━━ PHASE 2: 要件＋R&D＋設計（3並列）━━━"
+
+run_agent "planner" "
+テーマ: $THEME
+CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
+市場調査: $(extract_summary "$PROJECT_DIR/marketing-report.md")
+CS想定: $(extract_summary "$PROJECT_DIR/cs-scenarios.md")
+ペルソナ調査: $(read_full "$PROJECT_DIR/persona-research.md")
+
+ペルソナ調査を統合し、要件定義書を $PROJECT_DIR/requirements.md に出力してください。
+※冒頭に必ず ## サマリー セクション（10行以内の要約）を付けること。
+
+本文に含める内容:
+- 背景・目的（市場調査・ペルソナ調査の知見を反映）
 - 機能要件（優先度付き）
 - 非機能要件
-- ペルソナ・ユースケース
+- ペルソナ・カスタマージャーニーマップ
+- ユースケース
 - 制約事項
-- 用語集
 " &
 PID_PLANNER=$!
 
-# R&D部長 — 破壊的アイデア提案（並列）
 run_agent "rd" "
 テーマ: $THEME
-CEOの計画: $(read_file_or_empty "$PROJECT_DIR/plan.json")
-市場調査: $(read_file_or_empty "$PROJECT_DIR/marketing-report.md")
+CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
+市場調査: $(extract_summary "$PROJECT_DIR/marketing-report.md")
 
-テーマに対する破壊的アイデアを $PROJECT_DIR/rd-report.md に出力してください:
+テーマに対する破壊的アイデアを $PROJECT_DIR/rd-report.md に出力してください。
+※冒頭に必ず ## サマリー セクション（実現可能性が高い上位3案の要約）を付けること。
+
 - 従来のアプローチを10倍良くする方法（最低5案）
 - 競合が思いつかない差別化アイデア
 - 技術トレンドを活用した革新的機能
-- ムーンショット提案（大胆な構想1つ）
 - 実現可能性と優先度のマトリクス
 " &
 PID_RD=$!
 
-wait $PID_PLANNER && add_exp "planner" 20 "タスク完了"
-wait $PID_RD && add_exp "rd" 20 "タスク完了"
-
-# ── 要件レビューMTG ──
-log ""
-log "━━━ 要件レビューMTG ━━━"
-./ai-mtg.sh req-review "要件定義書のレビュー（R&Dアイデアも含む）" 3 chair "$PROJECT_DIR" || log "⚠️  MTGスキップ"
-
-# ================================================================
-# PHASE 3: 設計（設計部長 + 秘書部長が加速支援）
-# ================================================================
-log ""
-log "━━━ PHASE 3: 設計部長 技術設計 ━━━"
+# 設計部長 — 概要+詳細を1回で完了（旧PHASE2+3統合）
 run_agent "architect" "
 テーマ: $THEME
-計画: $(read_file_or_empty "$PROJECT_DIR/plan.json")
-要件: $(read_file_or_empty "$PROJECT_DIR/requirements.md")
-R&Dアイデア: $(read_file_or_empty "$PROJECT_DIR/rd-report.md")
+CEOの計画: $(read_full "$PROJECT_DIR/plan.json")
+市場調査: $(extract_summary "$PROJECT_DIR/marketing-report.md")
 
-以下の2ファイルを出力してください:
-1. $PROJECT_DIR/design.md — 技術設計書（アーキテクチャ、API設計、画面遷移）
-  ※R&Dアイデアのうち実現可能なものを設計に取り込むこと
+技術設計書を作成してください。概要設計と詳細設計を1つにまとめます。
+
+出力ファイル:
+1. $PROJECT_DIR/design.md — 技術設計書（概要+詳細）
+   ※冒頭に ## サマリー セクション必須
+   - アーキテクチャ方針（技術スタック選定理由）
+   - 主要コンポーネント構成図
+   - API仕様（エンドポイント一覧）
+   - 画面遷移図
+   - セキュリティ方針
+   - データモデル詳細
 2. $PROJECT_DIR/schema.sql — DBスキーマ（Cloudflare D1 / SQLite）
+" &
+PID_ARCH=$!
+
+wait $PID_PLANNER && add_exp "planner" 20 "タスク完了"
+wait $PID_RD && add_exp "rd" 20 "タスク完了"
+wait $PID_ARCH && add_exp "architect" 30 "設計完了"
+
+# 非同期レビュー（MTG廃止、秘書部長PMが一括レビュー）
+log ""
+log "━━━ 非同期レビュー: 要件＋設計（秘書部長PM） ━━━"
+run_async_review "要件・設計レビュー" "
+要件サマリー: $(extract_summary "$PROJECT_DIR/requirements.md")
+設計サマリー: $(extract_summary "$PROJECT_DIR/design.md")
+R&Dサマリー: $(extract_summary "$PROJECT_DIR/rd-report.md")
+スキーマ: $(read_full "$PROJECT_DIR/schema.sql")
 "
-add_exp "architect" 20 "タスク完了"
-
-# ── 設計レビューMTG ──
-log ""
-log "━━━ 設計レビューMTG ━━━"
-./ai-mtg.sh design-review "技術設計書のレビュー" 3 chair "$PROJECT_DIR" || log "⚠️  MTGスキップ"
+record_phase "PHASE2" "$PHASE2_START"
 
 # ================================================================
-# PHASE 4: デザイン & 開発 & CS準備（3並列）
+# PHASE 3: 実装（デザイン + 開発 + CS最終化 3並列）
+#          旧PHASE4を吸収。開発事前準備を廃止し直接実装。
 # ================================================================
+PHASE3_START=$(date +%s)
 log ""
-log "━━━ PHASE 4: デザイン＋開発＋CS準備（3並列）━━━"
+log "━━━ PHASE 3: 実装（デザイン＋開発＋CS 3並列）━━━"
 
 run_agent "ui-designer" "
 テーマ: $THEME
-要件: $(read_file_or_empty "$PROJECT_DIR/requirements.md")
-設計: $(read_file_or_empty "$PROJECT_DIR/design.md")
-UXリサーチ: $(read_file_or_empty "$PROJECT_DIR/ux-research-report.md")
+要件サマリー: $(extract_summary "$PROJECT_DIR/requirements.md")
+設計サマリー: $(extract_summary "$PROJECT_DIR/design.md")
 
 UIモックアップを $PROJECT_DIR/mockup.html に出力してください。
 HTML + Tailwind CSS で実際に表示できる形式にすること。
-UXリサーチの知見（ペルソナ、アクセシビリティ）を反映すること。
+アクセシビリティに配慮すること。
 " &
 PID_DESIGN=$!
 
 run_agent "developer" "
 テーマ: $THEME
-要件: $(read_file_or_empty "$PROJECT_DIR/requirements.md")
-設計: $(read_file_or_empty "$PROJECT_DIR/design.md")
-スキーマ: $(read_file_or_empty "$PROJECT_DIR/schema.sql")
+要件: $(read_full "$PROJECT_DIR/requirements.md")
+設計: $(read_full "$PROJECT_DIR/design.md")
+スキーマ: $(read_full "$PROJECT_DIR/schema.sql")
 
 アプリケーションを $PROJECT_DIR/app/ に実装してください。
 技術スタック: React + Vite + TypeScript + Tailwind CSS + Hono + D1
 " &
 PID_DEV=$!
 
-# CS部長 — サポート体制準備（並列）
 run_agent "cs" "
 テーマ: $THEME
-要件: $(read_file_or_empty "$PROJECT_DIR/requirements.md")
-UXリサーチ: $(read_file_or_empty "$PROJECT_DIR/ux-research-report.md")
+要件サマリー: $(extract_summary "$PROJECT_DIR/requirements.md")
+設計サマリー: $(extract_summary "$PROJECT_DIR/design.md")
+初期シナリオ: $(extract_summary "$PROJECT_DIR/cs-scenarios.md")
 
-カスタマーサクセス計画を $PROJECT_DIR/cs-report.md に出力してください:
-- オンボーディングフロー設計
-- FAQドラフト（想定質問10件以上）
+カスタマーサクセス最終計画を $PROJECT_DIR/cs-report.md に出力してください。
+※冒頭に ## サマリー セクション必須。
+
+- オンボーディングフロー詳細
+- FAQ最終版（15件以上）
 - サポートチャネル設計
 - チャーン防止施策
 - 顧客満足度KPI設定
 " &
-PID_CS=$!
+PID_CS_FINAL=$!
 
 wait $PID_DESIGN && add_exp "ui-designer" 20 "タスク完了"
 wait $PID_DEV && add_exp "developer" 20 "タスク完了"
-wait $PID_CS && add_exp "cs" 20 "タスク完了"
-
-# ── コードレビューMTG ──
-log ""
-log "━━━ コードレビューMTG ━━━"
-./ai-mtg.sh code-review "実装コードのレビュー" 3 chair "$PROJECT_DIR" || log "⚠️  MTGスキップ"
+wait $PID_CS_FINAL && add_exp "cs" 20 "タスク完了"
+record_phase "PHASE3" "$PHASE3_START"
 
 # ================================================================
-# PHASE 5: QAレビュー + 人事評価（並列）
+# PHASE 4: QA + 人事 + 報告書 + 最終報告（4並列 → 秘書報告）
+#          旧PHASE5+6を統合。報告書ドラフト→最終化の2段階を1回に。
 # ================================================================
+PHASE4_START=$(date +%s)
 log ""
-log "━━━ PHASE 5: QAレビュー ＋ 人事評価（並列）━━━"
+log "━━━ PHASE 4: QA＋評価＋報告書（3並列→最終報告）━━━"
 
 run_agent "qa-reviewer" "
 テーマ: $THEME
-要件: $(read_file_or_empty "$PROJECT_DIR/requirements.md")
-設計: $(read_file_or_empty "$PROJECT_DIR/design.md")
+要件: $(extract_summary "$PROJECT_DIR/requirements.md")
+設計: $(extract_summary "$PROJECT_DIR/design.md")
 
-以下のディレクトリにあるコードとモックアップを品質レビューしてください:
+以下のディレクトリにあるコードとモックアップを品質・セキュリティレビューしてください:
 - $PROJECT_DIR/app/
 - $PROJECT_DIR/mockup.html
 
-品質レポートを $PROJECT_DIR/qa-report.md に出力してください:
-- バグ・問題点一覧
-- セキュリティチェック結果
+品質レポートを $PROJECT_DIR/qa-report.md に出力してください。
+※冒頭に ## サマリー セクション必須（重大度別の問題件数サマリー）。
+
+- バグ・問題点一覧（重大度: Critical/High/Medium/Low）
+- セキュリティチェック結果（OWASP Top 10準拠）
 - パフォーマンス懸念事項
-- 改善提案
+- アクセシビリティチェック
+- 改善提案（優先度付き）
 " &
 PID_QA=$!
 
-# 人事部長 — プロジェクト中の社員評価（並列）
 run_agent "hr" "
 テーマ: $THEME
 プロジェクト出力先: $PROJECT_DIR
 
-プロジェクト参加メンバーの評価と育成提案を $PROJECT_DIR/hr-report.md に出力してください:
+プロジェクト参加メンバーの評価と育成提案を $PROJECT_DIR/hr-report.md に出力してください。
+※冒頭に ## サマリー セクション必須。
+
 - 各メンバーの貢献度評価
 - スキルアップが必要な分野の特定
 - チーム全体の強み・弱み分析
 - 次プロジェクトに向けた教育計画
-- 外部から採用すべきスキルセットの提案
 " &
 PID_HR=$!
 
-wait $PID_QA && add_exp "qa-reviewer" 20 "タスク完了"
-wait $PID_HR && add_exp "hr" 20 "タスク完了"
-
-# ================================================================
-# PHASE 6: 報告書作成 + 広報通知（並列）
-# ================================================================
-log ""
-log "━━━ PHASE 6: 報告書作成 ＋ 広報（並列）━━━"
-
+# 報告書を1回で最終版まで作成（ドラフト→最終化の2段階を廃止）
 run_agent "doc-writer" "
 テーマ: $THEME
-計画: $(read_file_or_empty "$PROJECT_DIR/plan.json")
-要件: $(read_file_or_empty "$PROJECT_DIR/requirements.md")
-設計: $(read_file_or_empty "$PROJECT_DIR/design.md")
-QAレポート: $(read_file_or_empty "$PROJECT_DIR/qa-report.md")
-市場調査: $(read_file_or_empty "$PROJECT_DIR/marketing-report.md")
-CS計画: $(read_file_or_empty "$PROJECT_DIR/cs-report.md")
+計画サマリー: $(extract_summary "$PROJECT_DIR/plan.json")
+要件サマリー: $(extract_summary "$PROJECT_DIR/requirements.md")
+設計サマリー: $(extract_summary "$PROJECT_DIR/design.md")
+市場調査サマリー: $(extract_summary "$PROJECT_DIR/marketing-report.md")
+CS計画サマリー: $(extract_summary "$PROJECT_DIR/cs-report.md")
 
-プロジェクト報告書を $PROJECT_DIR/report.md に出力してください:
+プロジェクト最終報告書を $PROJECT_DIR/report.md に出力してください。
+※QAレポートは並行実行中のため未完了ですが、他の情報で報告書を完成させてください。
+
 - エグゼクティブサマリー
 - 成果物一覧と概要
 - 技術構成
 - 市場調査結果の反映状況
-- 品質状況
 - CS準備状況
 - 残課題・次のステップ
 " &
 PID_DOC=$!
 
-# 広報部長 — プロジェクト完了通知作成（並列）
-run_agent "pr" "
-テーマ: $THEME
-計画: $(read_file_or_empty "$PROJECT_DIR/plan.json")
-QAレポート: $(read_file_or_empty "$PROJECT_DIR/qa-report.md")
-人事評価: $(read_file_or_empty "$PROJECT_DIR/hr-report.md")
+wait $PID_QA && add_exp "qa-reviewer" 20 "タスク完了"
+wait $PID_HR && add_exp "hr" 20 "タスク完了"
+wait $PID_DOC && add_exp "doc-writer" 20 "報告書完了"
 
-オーナーへのプロジェクト完了報告を $PROJECT_DIR/pr-report.md に出力してください:
-- プロジェクトハイライト（朗報を最初に）
-- 社員の活躍・貢献ピックアップ
-- 成果物サマリー
-- 注意事項・リスク
-- 次の推奨アクション
-フォーマットは見やすく、一目で全体像がわかる構成にすること。
-" &
-PID_PR=$!
-
-wait $PID_DOC && add_exp "doc-writer" 20 "タスク完了"
-wait $PID_PR && add_exp "pr" 20 "タスク完了"
-
-# ================================================================
-# PHASE 7: 秘書部長 最終サマリー + CEO最終確認
-# ================================================================
+# 秘書部長（PM）— 最終サマリー + CEO秘書報告を並列
 log ""
-log "━━━ PHASE 7: 秘書部長 最終サマリー → CEO秘書 報告 ━━━"
+log "━━━ 最終報告（秘書部長 + CEO秘書 並列）━━━"
 
-# 秘書部長 — 全成果物を統合して社長向けサマリー
 run_agent "chief-secretary" "
 テーマ: $THEME
-全成果物のディレクトリ: $PROJECT_DIR
-報告書: $(read_file_or_empty "$PROJECT_DIR/report.md")
-広報レポート: $(read_file_or_empty "$PROJECT_DIR/pr-report.md")
-QAレポート: $(read_file_or_empty "$PROJECT_DIR/qa-report.md")
-人事評価: $(read_file_or_empty "$PROJECT_DIR/hr-report.md")
+QAレポートサマリー: $(extract_summary "$PROJECT_DIR/qa-report.md")
+人事評価サマリー: $(extract_summary "$PROJECT_DIR/hr-report.md")
+計画サマリー: $(extract_summary "$PROJECT_DIR/plan.json")
+報告書サマリー: $(extract_summary "$PROJECT_DIR/report.md")
 
 社長向け最終サマリーを $PROJECT_DIR/chief-secretary-report.md に追記してください:
 1. プロジェクト完了報告（社長が30秒で全体を把握できる要約）
@@ -391,45 +541,51 @@ QAレポート: $(read_file_or_empty "$PROJECT_DIR/qa-report.md")
 3. 社長に確認いただきたい事項リスト
 4. 次のアクション推奨
 5. 社員の頑張りポイント（社長に褒めていただきたい点）
+" &
+PID_CS_REPORT=$!
 
-社長、お忙しいところ恐れ入りますが、以下ご確認をお願いいたします。
-"
-add_exp "chief-secretary" 30 "最終サマリー作成"
-
-# CEO秘書 — オーナーへの最終報告
 run_agent "secretary" "
 テーマ: $THEME
-秘書部長サマリー: $(read_file_or_empty "$PROJECT_DIR/chief-secretary-report.md")
-広報レポート: $(read_file_or_empty "$PROJECT_DIR/pr-report.md")
+計画サマリー: $(extract_summary "$PROJECT_DIR/plan.json")
+報告書サマリー: $(extract_summary "$PROJECT_DIR/report.md")
+QAサマリー: $(extract_summary "$PROJECT_DIR/qa-report.md")
 
 オーナー（ユーザー）への最終報告を $PROJECT_DIR/secretary-report.md に出力してください:
 1. プロジェクト完了のお知らせ
 2. 社長（黒澤 蓮司）の判断・指示のサマリー
-3. 特に注目すべき成果
-4. オーナーにご判断いただきたい事項
-5. 次のプロジェクトへの提言
-"
-add_exp "secretary" 20 "タスク完了"
+3. プロジェクトハイライト（朗報を最初に）
+4. 社員の活躍・貢献ピックアップ
+5. オーナーにご判断いただきたい事項
+6. 注意事項・リスク
+7. 次のプロジェクトへの提言
+" &
+PID_SEC=$!
 
-# ── 最終レビューMTG ──
-log ""
-log "━━━ 最終レビューMTG ━━━"
-./ai-mtg.sh final-review "プロジェクト最終レビュー" 3 chair "$PROJECT_DIR" || log "⚠️  MTGスキップ"
+wait $PID_CS_REPORT && add_exp "chief-secretary" 30 "最終サマリー作成"
+wait $PID_SEC && add_exp "secretary" 20 "タスク完了"
+record_phase "PHASE4" "$PHASE4_START"
 
 # ── プロジェクト完了 ──
+PROJECT_END=$(date +%s)
+TOTAL_DURATION=$((PROJECT_END - PROJECT_START))
+
+tmp=$(mktemp)
+jq ".total_duration_sec = $TOTAL_DURATION | .project_end = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" "$METRICS_FILE" > "$tmp" && mv "$tmp" "$METRICS_FILE"
+
 log ""
 log "============================================"
-log "🎉 AI会社シミュレーション 完了（16名体制）"
+log "🎉 AI会社シミュレーション v3 完了"
 log "📁 成果物: $PROJECT_DIR"
+log "⏱️  総所要時間: ${TOTAL_DURATION}秒"
+log "📊 計測データ: $METRICS_FILE"
 log "============================================"
 
 # 全員にプロジェクト完了EXP
-ALL_AGENTS="ceo secretary chief-secretary marketing hr pr cs rd ux-research planner architect developer qa-reviewer ui-designer doc-writer"
+ALL_AGENTS="ceo secretary chief-secretary marketing hr cs rd planner architect developer qa-reviewer ui-designer doc-writer"
 for agent_id in $ALL_AGENTS; do
   add_exp "$agent_id" 100 "プロジェクト完了"
 done
 
-# Slack通知
-notify_slack "🎉 AI会社プロジェクト完了（16名体制）\nテーマ: $THEME\n成果物: $PROJECT_DIR"
+notify_slack "🎉 AI会社プロジェクト完了 v3\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒\n成果物: $PROJECT_DIR"
 
 log "🏁 全工程終了"
