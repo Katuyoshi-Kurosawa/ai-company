@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import type { Agent } from '../types';
 import type { JobStatus, LogLine } from '../hooks/useRelay';
 import { PixelCharacter } from './PixelCharacter';
+import { FilePreviewModal } from './FilePreviewModal';
+
+const RELAY_URL = 'http://localhost:3939';
 
 interface Props {
   agents: Agent[];
@@ -10,6 +13,7 @@ interface Props {
   elapsed: number;
   error: string | null;
   commandLabel: string;
+  outputDir: string | null;
   onClose: () => void;
 }
 
@@ -70,11 +74,31 @@ export function ExecutionIndicator({ status, elapsed, onClick }: {
   );
 }
 
+// 主要成果物を優先表示するためのソート
+const FILE_PRIORITY: Record<string, number> = {
+  'deliverable.md': 1,
+  'secretary-report.md': 2,
+  'report.md': 3,
+  'requirements.md': 4,
+  'design.md': 5,
+  'qa-report.md': 6,
+};
+
+function fileIcon(name: string): string {
+  if (name.endsWith('.md')) return '📝';
+  if (name.endsWith('.json')) return '📊';
+  if (name.endsWith('.html')) return '🌐';
+  if (name.endsWith('.sql')) return '🗄️';
+  return '📄';
+}
+
 // 下部パネル: スライドアップで表示
-export function ExecutionPanel({ agents, status, lines, elapsed, error, commandLabel, onClose }: Props) {
+export function ExecutionPanel({ agents, status, lines, elapsed, error, commandLabel, outputDir, onClose }: Props) {
   const [expanded, setExpanded] = useState(true);
-  const [showLog, setShowLog] = useState(false);
+  const [panelTab, setPanelTab] = useState<'none' | 'log' | 'files'>('none');
   const [activeAgentIdx, setActiveAgentIdx] = useState(0);
+  const [files, setFiles] = useState<{ name: string; size: number }[]>([]);
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const { phase, progress } = detectPhase(lines);
 
@@ -82,6 +106,24 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
   const isError = status === 'error';
   const isRunning = status === 'running' || status === 'connecting';
   const activeAgent = agents[activeAgentIdx] ?? null;
+
+  // 完了時にファイル一覧を取得
+  useEffect(() => {
+    if (!isDone || !outputDir) return;
+    (async () => {
+      try {
+        const res = await fetch(`${RELAY_URL}/files?dir=${encodeURIComponent(outputDir)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const sorted = (data.files as { name: string; size: number }[]).sort((a, b) => {
+          const pa = FILE_PRIORITY[a.name] ?? 99;
+          const pb = FILE_PRIORITY[b.name] ?? 99;
+          return pa - pb;
+        });
+        setFiles(sorted);
+      } catch { /* ignore */ }
+    })();
+  }, [isDone, outputDir]);
 
   useEffect(() => {
     if (status !== 'running') return;
@@ -92,8 +134,8 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
   }, [status, agents.length]);
 
   useEffect(() => {
-    if (showLog) logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [lines.length, showLog]);
+    if (panelTab === 'log') logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [lines.length, panelTab]);
 
   if (!expanded) {
     return (
@@ -139,9 +181,20 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
           <div className="text-xs text-white/50 mt-0.5">{phase}</div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowLog(!showLog)}
-            className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] text-white/60 cursor-pointer transition-colors">
-            {showLog ? 'ログ ▼' : 'ログ ▲'} ({lines.length})
+          {/* 成果物ボタン（完了時のみ） */}
+          {isDone && files.length > 0 && (
+            <button onClick={() => setPanelTab(panelTab === 'files' ? 'none' : 'files')}
+              className={`px-2.5 py-1 rounded text-[10px] cursor-pointer transition-colors ${
+                panelTab === 'files' ? 'bg-indigo-500/30 text-indigo-300' : 'bg-white/10 hover:bg-white/20 text-white/60'
+              }`}>
+              成果物 📄 ({files.length})
+            </button>
+          )}
+          <button onClick={() => setPanelTab(panelTab === 'log' ? 'none' : 'log')}
+            className={`px-2.5 py-1 rounded text-[10px] cursor-pointer transition-colors ${
+              panelTab === 'log' ? 'bg-indigo-500/30 text-indigo-300' : 'bg-white/10 hover:bg-white/20 text-white/60'
+            }`}>
+            ログ ({lines.length})
           </button>
           <button onClick={() => setExpanded(false)}
             className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] text-white/60 cursor-pointer transition-colors">
@@ -210,8 +263,28 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
         </div>
       </div>
 
-      {/* Log panel (expandable) */}
-      {showLog && (
+      {/* Files panel */}
+      {panelTab === 'files' && (
+        <div className="border-t border-white/10 max-h-52 overflow-y-auto px-4 py-2 bg-black/40">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+            {files.map(f => (
+              <button key={f.name}
+                onClick={() => setPreviewFile(`${outputDir}/${f.name}`)}
+                className="flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-indigo-500/15 rounded-lg text-left cursor-pointer transition-colors group">
+                <span className="text-base">{fileIcon(f.name)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-white/80 truncate group-hover:text-indigo-300 transition-colors">{f.name}</div>
+                  <div className="text-[10px] text-white/30">{(f.size / 1024).toFixed(1)}KB</div>
+                </div>
+                <span className="text-[10px] text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">表示</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Log panel */}
+      {panelTab === 'log' && (
         <div className="border-t border-white/10 max-h-52 overflow-y-auto px-4 py-2 font-mono text-xs leading-relaxed bg-black/40">
           {lines.map((line, i) => (
             <div key={i}
@@ -222,6 +295,11 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
           ))}
           <div ref={logEndRef} />
         </div>
+      )}
+
+      {/* File preview modal */}
+      {previewFile && (
+        <FilePreviewModal filePath={previewFile} onClose={() => setPreviewFile(null)} />
       )}
     </div>
   );

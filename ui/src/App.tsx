@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { Agent } from './types';
 import { THEMES, BADGES } from './data/constants';
 import { useCompanyStore, calcTeamPower, getTeamRank } from './hooks/useCompanyStore';
 import { useRelay } from './hooks/useRelay';
-import { useExecutionHistory } from './hooks/useExecutionHistory';
+import { useExecutionHistory, parseLogLines } from './hooks/useExecutionHistory';
 import { OfficeFloor } from './components/OfficeFloor';
 import { useOfficeActivity } from './hooks/useOfficeActivity';
 import { OrgTree } from './components/OrgTree';
@@ -50,6 +50,7 @@ export default function App() {
   const prevStatus = useRef(relay.status);
   const isRunning = relay.status === 'running' || relay.status === 'connecting';
   const officeActivity = useOfficeActivity(relay.lines, executing);
+  const outputDir = useMemo(() => parseLogLines(relay.lines).outputDir, [relay.lines]);
 
   // relay再接続検出: ページリロード後に実行中ジョブがあれば復元
   useEffect(() => {
@@ -356,6 +357,7 @@ export default function App() {
           elapsed={relay.elapsed}
           error={relay.error}
           commandLabel={executionLabel}
+          outputDir={outputDir}
           onClose={() => { setExecuting(false); relay.reset(); }}
         />
       )}

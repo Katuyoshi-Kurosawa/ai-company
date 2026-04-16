@@ -6,6 +6,7 @@
 // ============================================================
 
 const http = require('http');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const path = require('path');
 
@@ -33,6 +34,15 @@ function readBody(req) {
       try { resolve(JSON.parse(body)); } catch { resolve({}); }
     });
   });
+}
+
+// パス安全チェック（output/配下のみ許可）
+function safePath(p) {
+  if (!p || p.includes('..')) return null;
+  const resolved = path.resolve(PROJECT_DIR, p);
+  const outputBase = path.resolve(PROJECT_DIR, 'output');
+  if (!resolved.startsWith(outputBase)) return null;
+  return resolved;
 }
 
 // 実行中のジョブを返す（なければnull）
@@ -71,6 +81,36 @@ const server = http.createServer(async (req, res) => {
       });
     }
     return json(res, 200, null);
+  }
+
+  // ファイル一覧取得
+  if (url.pathname === '/files') {
+    const dir = url.searchParams.get('dir');
+    const resolved = safePath(dir);
+    if (!resolved) return json(res, 400, { error: 'Invalid path' });
+    try {
+      const entries = fs.readdirSync(resolved, { withFileTypes: true });
+      const files = entries
+        .filter(e => e.isFile())
+        .map(e => ({ name: e.name, size: fs.statSync(path.join(resolved, e.name)).size }));
+      return json(res, 200, { files });
+    } catch {
+      return json(res, 404, { error: 'Directory not found' });
+    }
+  }
+
+  // ファイル内容取得
+  if (url.pathname === '/file') {
+    const filePath = url.searchParams.get('path');
+    const resolved = safePath(filePath);
+    if (!resolved) return json(res, 400, { error: 'Invalid path' });
+    try {
+      const content = fs.readFileSync(resolved, 'utf-8');
+      const name = path.basename(resolved);
+      return json(res, 200, { name, content });
+    } catch {
+      return json(res, 404, { error: 'File not found' });
+    }
   }
 
   // Execute command

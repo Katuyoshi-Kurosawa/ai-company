@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ExecutionRecord, ExecutionAction } from '../hooks/useExecutionHistory';
+import { FilePreviewModal } from './FilePreviewModal';
 
 interface Props {
   records: ExecutionRecord[];
@@ -83,6 +84,7 @@ function ActionTimeline({ actions, theme }: { actions: ExecutionAction[]; theme:
 
 export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
   const selected = records.find(r => r.id === selectedId);
 
   return (
@@ -213,12 +215,15 @@ export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props
                 </h4>
                 <div className="space-y-1">
                   {selected.files.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded text-xs font-mono">
+                    <button key={i}
+                      onClick={() => setPreviewFile(f)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-indigo-500/15 rounded text-xs font-mono cursor-pointer transition-colors group text-left">
                       <span className="text-base">
                         {f.endsWith('.md') ? '📝' : f.endsWith('.json') ? '📊' : f.endsWith('.html') ? '🌐' : f.endsWith('.sql') ? '🗄️' : '📄'}
                       </span>
                       <span className="flex-1 break-all">{f}</span>
-                    </div>
+                      <span className="text-[10px] text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">▶ 表示</span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -260,6 +265,11 @@ export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props
           </div>
         )}
       </div>
+
+      {/* File preview modal */}
+      {previewFile && (
+        <FilePreviewModal filePath={previewFile} onClose={() => setPreviewFile(null)} />
+      )}
     </div>
   );
 }
