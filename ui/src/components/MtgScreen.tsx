@@ -144,6 +144,7 @@ export function MtgScreen({ agents, theme }: Props) {
 
   const handleStart = () => {
     if (!config.agenda.trim()) return;
+    if (config.participants.length === 0) return;
     const chair = autoSelectChair(config.type, config.agenda);
     const updatedConfig = { ...config, chair };
     setConfig(updatedConfig);
@@ -282,7 +283,7 @@ export function MtgScreen({ agents, theme }: Props) {
         {/* Start button */}
         <button
           onClick={handleStart}
-          disabled={!config.agenda.trim()}
+          disabled={!config.agenda.trim() || config.participants.length === 0}
           className="w-full py-3 bg-indigo-500 text-white rounded-lg font-bold hover:bg-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors">
           MTG開始
         </button>
@@ -366,7 +367,7 @@ export function MtgScreen({ agents, theme }: Props) {
                   実際のMTG実行時に、エージェントの議論から決定事項が自動抽出されます。
                 </p>
                 <p className="text-xs" style={{ color: theme.muted }}>
-                  CLIで実行: <code className="bg-white/10 px-1.5 py-0.5 rounded">./ai-mtg.sh {config.type} "{config.agenda}" {config.rounds} {config.conflict}</code>
+                  CLIで実行: <code className="bg-white/10 px-1.5 py-0.5 rounded">./ai-mtg.sh {config.type} '{config.agenda.replace(/'/g, "'\\''")}' {config.rounds} {config.conflict}</code>
                 </p>
               </div>
             )}

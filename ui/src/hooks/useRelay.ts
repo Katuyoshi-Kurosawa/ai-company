@@ -28,7 +28,8 @@ export function useRelay() {
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
-  const reconnectedRef = useRef(false); // 再接続済みフラグ
+  const reconnectedRef = useRef(false);
+  const evtSourceRef = useRef<EventSource | null>(null);
 
   // Health check
   const checkConnection = useCallback(async () => {
@@ -49,11 +50,11 @@ export function useRelay() {
 
   // Start elapsed timer
   const startTimer = useCallback((startedAt?: number) => {
+    if (timerRef.current) clearInterval(timerRef.current);
     startTimeRef.current = startedAt || Date.now();
     timerRef.current = setInterval(() => {
       setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
     }, 1000);
-    // 初回即座に更新
     setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
   }, []);
 
@@ -61,17 +62,37 @@ export function useRelay() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }, []);
 
+  // Close existing EventSource before opening a new one
+  const closeStream = useCallback(() => {
+    if (evtSourceRef.current) {
+      evtSourceRef.current.close();
+      evtSourceRef.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (evtSourceRef.current) evtSourceRef.current.close();
+    };
+  }, []);
+
   // SSEストリームに接続する共通関数
   const connectToStream = useCallback((id: string, startedAt?: number) => {
+    closeStream(); // close any existing stream
     setJobId(id);
     setStatus('running');
     startTimer(startedAt);
 
     const evtSource = new EventSource(`${RELAY_URL}/stream/${id}`);
+    evtSourceRef.current = evtSource;
+
     evtSource.onmessage = (e) => {
       const data = JSON.parse(e.data);
       if (data.text === '__DONE__') {
         evtSource.close();
+        evtSourceRef.current = null;
         stopTimer();
         return;
       }
@@ -85,9 +106,13 @@ export function useRelay() {
     };
     evtSource.onerror = () => {
       evtSource.close();
+      evtSourceRef.current = null;
       stopTimer();
+      // Set error status only if we haven't received a __STATUS__ message
+      setStatus(prev => prev === 'running' ? 'error' : prev);
+      setError(prev => prev ?? '接続が切断されました');
     };
-  }, [startTimer, stopTimer]);
+  }, [startTimer, stopTimer, closeStream]);
 
   // ページロード時に実行中ジョブを検出して再接続
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
@@ -103,7 +128,6 @@ export function useRelay() {
         if (!res.ok) return;
         const active = await res.json();
         if (active && active.id && active.status === 'running') {
-          // 実行中ジョブが見つかった → ラベル情報を保存して再接続
           setActiveLabel(active.label || null);
           setActiveType(active.type || null);
           connectToStream(active.id, active.startedAt);
@@ -147,13 +171,14 @@ export function useRelay() {
   }, [connectToStream, stopTimer]);
 
   const reset = useCallback(() => {
+    closeStream();
     setJobId(null);
     setStatus('idle');
     setLines([]);
     setElapsed(0);
     setError(null);
     stopTimer();
-  }, [stopTimer]);
+  }, [stopTimer, closeStream]);
 
   return { connected, jobId, status, lines, elapsed, error, execute, reset, checkConnection, activeLabel, activeType };
 }

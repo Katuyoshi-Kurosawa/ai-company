@@ -224,7 +224,7 @@ export function EscalationScreen({ agents, theme }: Props) {
                 <p className="text-xs" style={{ color: theme.muted }}>
                   CLIで実行:<br />
                   <code className="bg-white/10 px-1.5 py-0.5 rounded text-[10px] block mt-1 break-all">
-                    ./ai-escalation.sh {selected.from} {selected.to} {selected.type} "{selected.subject}" "..."
+                    ./ai-escalation.sh {selected.from} {selected.to} {selected.type} '{selected.subject.replace(/'/g, "'\\''")}' '...'
                   </code>
                 </p>
               </div>

@@ -51,9 +51,12 @@ export default function App() {
   useEffect(() => {
     if (!executing && isRunning && relay.jobId) {
       setExecuting(true);
-      // relay側で保存されたラベルを復元（なければ汎用ラベル）
       const typeLabel = relay.activeType === 'mtg' ? 'MTG' : '全工程実行';
-      setExecutionLabel(relay.activeLabel ? `${typeLabel}: ${relay.activeLabel}` : '実行中（再接続）');
+      const label = relay.activeLabel ? `${typeLabel}: ${relay.activeLabel}` : '実行中（再接続）';
+      setExecutionLabel(label);
+      // 再接続時にも履歴記録を開始（完了時に保存される）
+      const recType = (relay.activeType === 'mtg' || relay.activeType === 'escalation') ? relay.activeType : 'company';
+      currentRecordId.current = execHistory.startRecord(recType, label, {});
       setView('office');
     }
   }, [isRunning, relay.jobId]);
