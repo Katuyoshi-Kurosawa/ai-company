@@ -51,7 +51,9 @@ export default function App() {
   useEffect(() => {
     if (!executing && isRunning && relay.jobId) {
       setExecuting(true);
-      setExecutionLabel('実行中（再接続）');
+      // relay側で保存されたラベルを復元（なければ汎用ラベル）
+      const typeLabel = relay.activeType === 'mtg' ? 'MTG' : '全工程実行';
+      setExecutionLabel(relay.activeLabel ? `${typeLabel}: ${relay.activeLabel}` : '実行中（再接続）');
       setView('office');
     }
   }, [isRunning, relay.jobId]);

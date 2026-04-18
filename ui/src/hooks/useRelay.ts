@@ -90,6 +90,9 @@ export function useRelay() {
   }, [startTimer, stopTimer]);
 
   // ページロード時に実行中ジョブを検出して再接続
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const [activeType, setActiveType] = useState<string | null>(null);
+
   useEffect(() => {
     if (reconnectedRef.current) return;
     reconnectedRef.current = true;
@@ -100,7 +103,9 @@ export function useRelay() {
         if (!res.ok) return;
         const active = await res.json();
         if (active && active.id && active.status === 'running') {
-          // 実行中ジョブが見つかった → 再接続
+          // 実行中ジョブが見つかった → ラベル情報を保存して再接続
+          setActiveLabel(active.label || null);
+          setActiveType(active.type || null);
           connectToStream(active.id, active.startedAt);
         }
       } catch { /* relay未起動なら無視 */ }
@@ -150,5 +155,5 @@ export function useRelay() {
     stopTimer();
   }, [stopTimer]);
 
-  return { connected, jobId, status, lines, elapsed, error, execute, reset, checkConnection };
+  return { connected, jobId, status, lines, elapsed, error, execute, reset, checkConnection, activeLabel, activeType };
 }
