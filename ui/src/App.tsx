@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { Agent } from './types';
-import { THEMES, BADGES } from './data/constants';
+import { THEMES } from './data/constants';
 import { useCompanyStore, calcTeamPower, getTeamRank } from './hooks/useCompanyStore';
 import { useRelay } from './hooks/useRelay';
 import { useExecutionHistory, parseLogLines } from './hooks/useExecutionHistory';
@@ -12,7 +12,6 @@ import { AgentCard } from './components/AgentCard';
 import { AgentDetailModal } from './components/AgentDetailModal';
 import { NotificationBar } from './components/NotificationBar';
 import { CompanyManager } from './components/CompanyManager';
-import { RadarChart } from './components/RadarChart';
 import { MtgScreen } from './components/MtgScreen';
 import { EscalationScreen } from './components/EscalationScreen';
 import { CommandCenter } from './components/CommandCenter';
@@ -22,10 +21,6 @@ import { QuickInputBar, CommandPalette } from './components/QuickCommand';
 declare const __BUILD_TIME__: string;
 
 type View = 'office' | 'org' | 'mtg' | 'escalation' | 'command' | 'settings';
-
-function getBadgeIcon(badgeId: string): string {
-  return BADGES.find(b => b.id === badgeId)?.icon ?? '🏅';
-}
 
 const NAV_ITEMS: { id: View; label: string; icon: string }[] = [
   { id: 'office', label: 'オフィス', icon: '🏢' },
@@ -83,6 +78,37 @@ export default function App() {
     }
     prevStatus.current = relay.status;
   }, [relay.status, relay.lines, relay.error, execHistory]);
+
+  // Quest log items from execution phases
+  const questItems = useMemo(() => {
+    if (!executing) return undefined;
+    const joined = relay.lines.map(l => l.text).join('\n');
+    const quests: { label: string; status: 'active' | 'done' | 'error' }[] = [];
+    const phases = [
+      { key: '軽量モード', label: '秘書が応答中' },
+      { key: '中量PHASE 1', label: '計画＋調査' },
+      { key: '中量PHASE 2', label: '企画＋成果物作成' },
+      { key: 'PHASE 1', label: '調査・計画' },
+      { key: 'PHASE 2', label: '要件＋R&D＋設計＋レビュー' },
+      { key: 'PHASE 3', label: '実装＋QA＋評価＋報告' },
+      { key: 'QA＋最終報告', label: 'QA＋最終報告' },
+      { key: '最終報告', label: '最終報告作成' },
+      { key: '全工程終了', label: '完了' },
+    ];
+    let lastFound = -1;
+    for (let i = 0; i < phases.length; i++) {
+      if (joined.includes(phases[i].key)) lastFound = i;
+    }
+    for (let i = 0; i < phases.length; i++) {
+      if (i <= lastFound) quests.push({ label: phases[i].label, status: 'done' });
+      else if (i === lastFound + 1) quests.push({ label: phases[i].label, status: 'active' });
+    }
+    if (relay.status === 'error') {
+      const last = quests[quests.length - 1];
+      if (last) last.status = 'error';
+    }
+    return quests.length > 0 ? quests : undefined;
+  }, [executing, relay.lines, relay.status]);
 
   const theme = THEMES[company.theme];
   const teamPower = Math.round(calcTeamPower(company.agents));
@@ -181,72 +207,25 @@ export default function App() {
       <div className="flex-1 flex">
         <main className={`flex-1 overflow-auto ${executing ? 'pb-32' : ''}`}>
           {view === 'office' && (
-            <div className="flex gap-5 p-5" style={{ minHeight: 'calc(100vh - 120px)' }}>
-              <aside className="w-60 shrink-0">
-                <ScoreBoard agents={company.agents} onSelect={setSelectedAgent} />
-              </aside>
-              <div className="flex-1">
-                <OfficeFloor
-                  agents={company.agents}
-                  onSelect={setSelectedAgent}
-                  selectedId={selectedAgent?.id}
-                  isLive={executing}
-                  activities={officeActivity.activities}
-                  activeRooms={officeActivity.activeRooms}
-                  energyLevel={officeActivity.energyLevel}
-                  livePhase={officeActivity.phase}
-                  liveProgress={officeActivity.progress}
-                  liveAgentCount={officeActivity.liveAgentCount}
-                  onAgentClick={officeActivity.triggerSpeech}
-                />
-              </div>
-              <aside className="w-72 shrink-0">
-                {selectedAgent ? (
-                  <div className="rounded-xl p-5 space-y-4 sticky top-5"
-                    style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
-                    <div className="text-center">
-                      <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-4xl mb-3"
-                        style={{ background: `${theme.muted}10` }}>
-                        {selectedAgent.icon}
-                      </div>
-                      <h3 className="text-lg font-bold">{selectedAgent.name}</h3>
-                      <p className="text-sm" style={{ color: theme.muted }}>{selectedAgent.title}</p>
-                      <div className="flex items-center justify-center gap-2 mt-1">
-                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                          style={{ background: '#3b82f615', color: '#3b82f6' }}>
-                          Lv.{selectedAgent.level}
-                        </span>
-                        <span className="text-xs" style={{ color: theme.muted }}>{selectedAgent.rank}</span>
-                        <span className="text-xs">{selectedAgent.visual.gender === 'female' ? '♀' : '♂'}</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-center">
-                      <RadarChart stats={selectedAgent.stats} size={170} />
-                    </div>
-                    <div className="flex flex-wrap gap-1 justify-center">
-                      {selectedAgent.badges.length > 0 ? (
-                        selectedAgent.badges.slice(0, 6).map(b => (
-                          <span key={b} className="text-base">{getBadgeIcon(b)}</span>
-                        ))
-                      ) : (
-                        <span className="text-xs" style={{ color: theme.muted }}>バッジなし</span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setShowDetail(true)}
-                      className="w-full py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition-all"
-                      style={{ background: '#3b82f615', color: '#3b82f6', border: '1px solid #3b82f630' }}>
-                      詳細を見る
-                    </button>
-                  </div>
-                ) : (
-                  <div className="rounded-xl p-10 text-center"
-                    style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
-                    <div className="text-4xl mb-3 opacity-20">👤</div>
-                    <p className="text-sm" style={{ color: theme.muted }}>社員を選択してください</p>
-                  </div>
-                )}
-              </aside>
+            <div style={{ height: 'calc(100vh - 100px)' }}>
+              <OfficeFloor
+                agents={company.agents}
+                onSelect={setSelectedAgent}
+                selectedId={selectedAgent?.id}
+                isLive={executing}
+                activities={officeActivity.activities}
+                activeRooms={officeActivity.activeRooms}
+                energyLevel={officeActivity.energyLevel}
+                livePhase={officeActivity.phase}
+                liveProgress={officeActivity.progress}
+                liveAgentCount={officeActivity.liveAgentCount}
+                onAgentClick={officeActivity.triggerSpeech}
+                executing={executing}
+                commandLabel={executionLabel}
+                elapsed={relay.elapsed}
+                questItems={questItems}
+                onShowDetail={(agent) => { setSelectedAgent(agent); setShowDetail(true); }}
+              />
             </div>
           )}
 
@@ -308,7 +287,7 @@ export default function App() {
       </div>
 
       {/* Bottom bar */}
-      <footer className={`border-t ${executing ? 'hidden' : ''}`} style={{ borderColor: theme.border, background: theme.surface }}>
+      <footer className={`border-t ${executing || view === 'office' ? 'hidden' : ''}`} style={{ borderColor: theme.border, background: theme.surface }}>
         <div className="px-6 py-2 flex items-center justify-between">
           <div className="flex gap-2">
             {company.agents.map(a => (
