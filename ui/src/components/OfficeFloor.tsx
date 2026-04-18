@@ -467,11 +467,19 @@ export function OfficeFloor({
     return agents.filter(a => a.room === id);
   }, [agents, isLive, activities]);
 
-  // Auto-zoom to active room during execution
+  const [manualZoom, setManualZoom] = useState(false);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
+
+  // Auto-zoom to active room during execution (only if not manually zooming)
   useEffect(() => {
+    if (manualZoom) return;
     if (!executing || !isLive || !activeRooms || activeRooms.size === 0) {
       setZoom(1);
       setZoomTarget(null);
+      setPanOffset({ x: 0, y: 0 });
       return;
     }
     const activeRoom = ROOMS.find(r => activeRooms.has(r.id));
@@ -480,7 +488,44 @@ export function OfficeFloor({
       setZoom(1.5);
       setZoomTarget({ x: center.x, y: center.y });
     }
-  }, [executing, isLive, activeRooms]);
+  }, [executing, isLive, activeRooms, manualZoom]);
+
+  // Wheel zoom
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.15 : 0.15;
+      setZoom(prev => {
+        const next = Math.max(0.5, Math.min(4, prev + delta));
+        if (next !== 1) setManualZoom(true);
+        if (Math.abs(next - 1) < 0.05) { setManualZoom(false); setPanOffset({ x: 0, y: 0 }); return 1; }
+        return next;
+      });
+      setZoomTarget(null);
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  // Drag pan (when zoomed)
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (zoom <= 1) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    panStart.current = { ...panOffset };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [zoom, panOffset]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setPanOffset({ x: panStart.current.x + dx / zoom, y: panStart.current.y + dy / zoom });
+  }, [zoom]);
+
+  const handlePointerUp = useCallback(() => { isDragging.current = false; }, []);
 
   const handleAgentClick = (agent: Agent, roomId: RoomId) => {
     onSelect(agent);
@@ -492,13 +537,19 @@ export function OfficeFloor({
   const sortedRooms = [...ROOMS].sort((a, b) => (a.gy + a.gx) - (b.gy + b.gx));
 
   // Compute transform for zoom
-  const transform = zoom > 1 && zoomTarget
-    ? `scale(${zoom}) translate(${VW / 2 - zoomTarget.x}px, ${VH / 2 - zoomTarget.y}px)`
-    : 'scale(1) translate(0px, 0px)';
+  const transform = zoom > 1
+    ? zoomTarget
+      ? `scale(${zoom}) translate(${VW / 2 - zoomTarget.x}px, ${VH / 2 - zoomTarget.y}px)`
+      : `scale(${zoom}) translate(${panOffset.x}px, ${panOffset.y}px)`
+    : `scale(${zoom})`;
 
   return (
     <div className="relative w-full h-full overflow-hidden" ref={containerRef}
-      style={{ background: '#1a1a2e' }}>
+      style={{ background: '#1a1a2e', cursor: zoom > 1 ? (isDragging.current ? 'grabbing' : 'grab') : 'default' }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}>
 
       {/* ── Map Container with zoom ── */}
       <div className="w-full h-full transition-transform duration-1000 ease-in-out origin-center"
@@ -685,8 +736,18 @@ export function OfficeFloor({
         />
       )}
 
-      {/* Bottom-left: Minimap */}
+      {/* Bottom-left: Minimap + Zoom controls */}
       <Minimap activeRooms={activeRooms} isLive={isLive} />
+      <div className="absolute bottom-[110px] left-3 z-30 flex flex-col gap-1">
+        <button onClick={() => setZoom(prev => Math.min(4, prev + 0.3))}
+          className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-white/70 text-sm font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">+</button>
+        <button onClick={() => { setZoom(1); setManualZoom(false); setPanOffset({ x: 0, y: 0 }); setZoomTarget(null); }}
+          className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-[9px] text-white/50 cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center font-mono">
+          {Math.round(zoom * 100)}%
+        </button>
+        <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.3))}
+          className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-white/70 text-sm font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">-</button>
+      </div>
 
       {/* Bottom-right: Quest Log */}
       <QuestLog items={questItems} isLive={isLive} />

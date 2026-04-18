@@ -122,7 +122,7 @@ function Character3D({ agent, targetGx, targetGy, containerSize, activity, onCli
         visual={agent.visual}
         animState={isMovingRef.current ? 'walking' : animState}
         direction={directionRef.current}
-        scale={0.4}
+        scale={0.8}
       />
     </group>
   );
