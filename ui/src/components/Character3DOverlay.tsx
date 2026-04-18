@@ -19,27 +19,28 @@ function isoTo2D(gx: number, gy: number) {
   return { x: OX + (gx - gy) * TW / 2, y: OY + (gx + gy) * TH / 2 };
 }
 
-// Convert isometric 2D position to 3D world coords for the overlay
-// Must account for SVG preserveAspectRatio="xMidYMid meet" centering
+// Convert isometric 2D position to 3D world coords for the overlay.
+// The SVG uses preserveAspectRatio="xMidYMid meet", so its content is
+// uniformly scaled and centered within the container. The 3D camera frustum
+// must match this behavior: we compute where the SVG content actually renders
+// on screen (pixel coords), then map that into the camera's frustum space.
 function isoToWorld(gx: number, gy: number, containerW: number, containerH: number) {
   const pos2d = isoTo2D(gx, gy);
   // SVG "meet" scales uniformly to fit, then centers
-  const scale = Math.min(containerW / VW, containerH / VH);
-  const renderedW = VW * scale;
-  const renderedH = VH * scale;
+  const svgScale = Math.min(containerW / VW, containerH / VH);
+  const renderedW = VW * svgScale;
+  const renderedH = VH * svgScale;
   const offsetX = (containerW - renderedW) / 2;
   const offsetY = (containerH - renderedH) / 2;
   // Map SVG viewBox coords to actual screen pixel position
-  const screenX = offsetX + pos2d.x * scale;
-  const screenY = offsetY + pos2d.y * scale;
+  const screenX = offsetX + pos2d.x * svgScale;
+  const screenY = offsetY + pos2d.y * svgScale;
   // Convert screen position to 3D world coords (orthographic camera)
   const aspect = containerW / containerH;
   const frustumH = 10;
-  const nx = (screenX / containerW) * 2 - 1;
-  const ny = -((screenY / containerH) * 2 - 1);
   return {
-    x: nx * frustumH * aspect / 2,
-    y: ny * frustumH / 2,
+    x: ((screenX / containerW) * 2 - 1) * frustumH * aspect / 2,
+    y: -(((screenY / containerH) * 2 - 1)) * frustumH / 2,
     z: 0,
   };
 }

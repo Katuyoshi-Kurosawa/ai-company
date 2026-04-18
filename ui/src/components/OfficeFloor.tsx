@@ -444,34 +444,9 @@ export function OfficeFloor({
   const [zoom, setZoom] = useState(1);
   const [zoomTarget, setZoomTarget] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [mapSize, setMapSize] = useState({ w: VW, h: VH });
   const sound = useSoundEffects();
   const autoChat = useAutoChat(!executing); // auto chat when NOT executing
   const prevPhase = useRef(livePhase);
-
-  // Track inner map container size for SVG meet offset calculation
-  useEffect(() => {
-    const el = mapRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      if (width > 0 && height > 0) setMapSize({ w: width, h: height });
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Convert SVG viewBox coords to % of the container, accounting for preserveAspectRatio="xMidYMid meet"
-  const svgToPct = useCallback((svgX: number, svgY: number) => {
-    const scale = Math.min(mapSize.w / VW, mapSize.h / VH);
-    const offsetX = (mapSize.w - VW * scale) / 2;
-    const offsetY = (mapSize.h - VH * scale) / 2;
-    return {
-      left: ((offsetX + svgX * scale) / mapSize.w) * 100,
-      top: ((offsetY + svgY * scale) / mapSize.h) * 100,
-    };
-  }, [mapSize]);
 
   // SE: Phase change detection
   useEffect(() => {
@@ -579,7 +554,7 @@ export function OfficeFloor({
       {/* ── Map Container with zoom ── */}
       <div className="w-full h-full transition-transform duration-1000 ease-in-out origin-center"
         style={{ transform }}>
-        <div ref={mapRef} className="relative w-full h-full">
+        <div className="relative w-full h-full">
           {/* ── Building SVG ── */}
           <svg className="w-full h-full" viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
             <defs>
@@ -688,11 +663,12 @@ export function OfficeFloor({
               if (i >= slots.length) return null;
               const slot = slots[i];
               const pos = iso(slot.gx, slot.gy);
-              const pct = svgToPct(pos.x, pos.y - 10);
+              const pctL = (pos.x / VW) * 100;
+              const pctT = ((pos.y - 10) / VH) * 100;
               const showBubble = bubbleAgentId === agent.id;
               const activity = activities?.get(agent.id);
               return (
-                <div key={agent.id} className="absolute pointer-events-none" style={{ left: `${pct.left}%`, top: `${pct.top}%`, transform: 'translate(-50%, -100%)', zIndex: showBubble ? 50 : 20 }}>
+                <div key={agent.id} className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, -100%)', zIndex: showBubble ? 50 : 20 }}>
                   {showBubble && (
                     <div className="pointer-events-auto">
                       <AgentBubblePanel
@@ -728,11 +704,12 @@ export function OfficeFloor({
           {/* ── Room Labels ── */}
           {sortedRooms.map(room => {
             const labelPos = iso(room.gx + room.w * 0.3, room.gy);
-            const labelPct = svgToPct(labelPos.x, labelPos.y - WH - 8);
+            const pctL = (labelPos.x / VW) * 100;
+            const pctT = ((labelPos.y - WH - 8) / VH) * 100;
             const roomAgents = byRoom(room.id);
             const isActive = isLive && activeRooms?.has(room.id);
             return (
-              <div key={`label-${room.id}`} className="absolute pointer-events-none" style={{ left: `${labelPct.left}%`, top: `${labelPct.top}%`, transform: 'translate(-50%, -100%)' }}>
+              <div key={`label-${room.id}`} className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, -100%)' }}>
                 <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold whitespace-nowrap backdrop-blur-sm
                   ${isActive ? 'bg-indigo-900/70 text-indigo-200 border border-indigo-400/30' : 'bg-slate-900/60 text-white/80'}`}>
                   <span className="text-xs">{room.icon}</span>
