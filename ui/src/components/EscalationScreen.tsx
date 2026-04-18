@@ -72,9 +72,9 @@ export function EscalationScreen({ agents, theme }: Props) {
   const alertCount = consultations.filter(c => c.urgency === 'high').length;
 
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex gap-4 h-full min-w-0">
       {/* Left: Org chart with pulse animation */}
-      <div className="w-80 shrink-0 rounded-xl p-4 space-y-4"
+      <div className="w-72 shrink-0 rounded-xl p-4 space-y-4"
         style={{ background: theme.surface, borderColor: theme.border, borderWidth: 1 }}>
         <h3 className="font-bold">組織図</h3>
         <div className="space-y-3">
@@ -161,9 +161,9 @@ export function EscalationScreen({ agents, theme }: Props) {
                     <span className={`text-xs font-bold ${status.color}`}>{status.label}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs" style={{ color: theme.muted }}>
-                    <span className="flex items-center gap-1">{fromAgent && <PixelCharacter visual={fromAgent.visual} size="sm" />} {fromAgent?.name}</span>
+                    <span>{fromAgent?.icon} {fromAgent?.name}</span>
                     <span>→</span>
-                    <span className="flex items-center gap-1">{toAgent && <PixelCharacter visual={toAgent.visual} size="sm" />} {toAgent?.name}</span>
+                    <span>{toAgent?.icon} {toAgent?.name}</span>
                     <span className="ml-auto">{new Date(c.timestamp).toLocaleString('ja-JP')}</span>
                   </div>
                 </button>
@@ -174,7 +174,7 @@ export function EscalationScreen({ agents, theme }: Props) {
       </div>
 
       {/* Right: Detail panel */}
-      <div className="w-72 shrink-0 rounded-xl p-4 space-y-4"
+      <div className="w-64 shrink-0 rounded-xl p-4 space-y-4"
         style={{ background: theme.surface, borderColor: theme.border, borderWidth: 1 }}>
         {selected ? (() => {
           const fromAgent = getAgent(selected.from);

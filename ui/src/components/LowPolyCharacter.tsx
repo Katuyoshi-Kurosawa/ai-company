@@ -237,7 +237,10 @@ export function LowPolyCharacter({ visual, animState = 'idle', direction = 180, 
 // ══════════════════════════════════════════
 function Hair({ style, color, isFemale }: { style: string; color: string; isFemale: boolean }) {
   switch (style) {
+    // ── ショートヘア系 ──
     case 'short':
+    case 'short-back':   // PixelCharacter互換: shortと同じ形状
+    case 'short-natural': // PixelCharacter互換: shortと同じ形状
       return (
         <group>
           <mesh position={[0, 0.2, -0.02]}>
@@ -250,7 +253,30 @@ function Hair({ style, color, isFemale }: { style: string; color: string; isFema
           </mesh>
         </group>
       );
+
+    case 'short-side': // PixelCharacter互換: shortベース + サイドパーツ
+      return (
+        <group>
+          {/* shortベース */}
+          <mesh position={[0, 0.2, -0.02]}>
+            <boxGeometry args={[0.32, 0.16, 0.32]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          <mesh position={[0, 0.28, 0]}>
+            <boxGeometry args={[0.33, 0.06, 0.3]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          {/* サイドパーツ（左に流した前髪） */}
+          <mesh position={[-0.1, 0.24, 0.14]}>
+            <boxGeometry args={[0.14, 0.08, 0.04]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+        </group>
+      );
+
+    // ── ロングヘア系 ──
     case 'long':
+    case 'long-straight': // PixelCharacter互換: longと同じ形状
       return (
         <group>
           <mesh position={[0, 0.2, -0.02]}>
@@ -274,6 +300,76 @@ function Hair({ style, color, isFemale }: { style: string; color: string; isFema
           )}
         </group>
       );
+
+    case 'long-wave': // PixelCharacter互換: longベース + サイドウェーブ
+      return (
+        <group>
+          {/* longベース */}
+          <mesh position={[0, 0.2, -0.02]}>
+            <boxGeometry args={[0.33, 0.16, 0.33]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          <mesh position={[0, 0.28, 0]}>
+            <boxGeometry args={[0.34, 0.06, 0.3]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          {/* Long hair back */}
+          <mesh position={[0, -0.05, -0.12]}>
+            <boxGeometry args={[0.3, 0.4, 0.08]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          {/* ウェーブ（左右にうねりパーツ） */}
+          <mesh position={[-0.17, 0.0, 0.0]}>
+            <boxGeometry args={[0.05, 0.28, 0.14]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          <mesh position={[0.17, 0.0, 0.0]}>
+            <boxGeometry args={[0.05, 0.28, 0.14]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          {/* ウェーブ段差（左右に少しずらして立体感） */}
+          <mesh position={[-0.15, -0.08, 0.06]}>
+            <boxGeometry args={[0.04, 0.12, 0.1]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          <mesh position={[0.15, -0.08, 0.06]}>
+            <boxGeometry args={[0.04, 0.12, 0.1]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+        </group>
+      );
+
+    // ── ミディアム系 ──
+    case 'medium-wave': // PixelCharacter互換: bobとlongの中間の長さ
+      return (
+        <group>
+          {/* bobベースの頭頂部（少し大きめ） */}
+          <mesh position={[0, 0.18, -0.01]}>
+            <boxGeometry args={[0.34, 0.2, 0.33]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          <mesh position={[0, 0.28, 0]}>
+            <boxGeometry args={[0.35, 0.06, 0.3]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          {/* bobより長めのサイド */}
+          <mesh position={[-0.15, 0.0, 0.02]}>
+            <boxGeometry args={[0.06, 0.3, 0.2]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          <mesh position={[0.15, 0.0, 0.02]}>
+            <boxGeometry args={[0.06, 0.3, 0.2]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          {/* 背面に少し伸びた髪 */}
+          <mesh position={[0, -0.02, -0.12]}>
+            <boxGeometry args={[0.28, 0.24, 0.06]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+        </group>
+      );
+
+    // ── ポニーテール ──
     case 'ponytail':
       return (
         <group>
@@ -292,6 +388,8 @@ function Hair({ style, color, isFemale }: { style: string; color: string; isFema
           </mesh>
         </group>
       );
+
+    // ── ボブ ──
     case 'bob':
       return (
         <group>
@@ -314,7 +412,10 @@ function Hair({ style, color, isFemale }: { style: string; color: string; isFema
           </mesh>
         </group>
       );
+
+    // ── スパイキー / メッシー系 ──
     case 'spiky':
+    case 'messy': // PixelCharacter互換: spikyと同じ形状
       return (
         <group>
           <mesh position={[0, 0.22, -0.02]}>
@@ -336,6 +437,8 @@ function Hair({ style, color, isFemale }: { style: string; color: string; isFema
           </mesh>
         </group>
       );
+
+    // ── ツインテール ──
     case 'twin':
       return (
         <group>
@@ -358,7 +461,29 @@ function Hair({ style, color, isFemale }: { style: string; color: string; isFema
           </mesh>
         </group>
       );
-    default: // 'swept', 'slick', etc.
+
+    // ── アップド（お団子） ──
+    case 'updo': // PixelCharacter互換: shortトップ + お団子
+      return (
+        <group>
+          {/* shortベースの頭頂部 */}
+          <mesh position={[0, 0.2, -0.02]}>
+            <boxGeometry args={[0.32, 0.16, 0.32]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          <mesh position={[0, 0.28, 0]}>
+            <boxGeometry args={[0.33, 0.06, 0.3]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          {/* お団子（トップに球体） */}
+          <mesh position={[0, 0.36, -0.04]}>
+            <sphereGeometry args={[0.09, 8, 8]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+        </group>
+      );
+
+    default: // 'swept', 'slick' など未定義スタイル用フォールバック
       return (
         <group>
           <mesh position={[0, 0.2, -0.02]}>
@@ -369,9 +494,14 @@ function Hair({ style, color, isFemale }: { style: string; color: string; isFema
             <boxGeometry args={[0.33, 0.06, 0.3]} />
             <meshStandardMaterial color={color} />
           </mesh>
-          {/* Side part */}
+          {/* 前髪パーツ（左に流したサイドバング） */}
           <mesh position={[-0.12, 0.24, 0.1]}>
             <boxGeometry args={[0.1, 0.1, 0.1]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          {/* 右サイドに小さな段差（defaultでも特徴を持たせる） */}
+          <mesh position={[0.13, 0.2, 0.08]}>
+            <boxGeometry args={[0.06, 0.06, 0.06]} />
             <meshStandardMaterial color={color} />
           </mesh>
         </group>

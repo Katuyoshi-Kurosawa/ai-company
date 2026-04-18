@@ -413,7 +413,7 @@ function BottomDock({ agents, selectedId, onSelect, activities }: {
             <button key={a.id} onClick={() => onSelect(a)}
               className={`relative flex flex-col items-center cursor-pointer transition-all duration-300 px-1
                 ${isSelected ? 'scale-110 -translate-y-1' : 'hover:scale-105 hover:-translate-y-0.5'}`}>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm border transition-colors"
+              <div className="w-8 h-9 rounded-lg flex items-center justify-center text-sm border transition-colors overflow-visible"
                 style={{
                   background: isSelected ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.05)',
                   borderColor: isSelected ? 'rgba(99,102,241,0.5)' : 'transparent',
@@ -423,7 +423,7 @@ function BottomDock({ agents, selectedId, onSelect, activities }: {
               {isWorking && (
                 <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
               )}
-              <span className="text-[7px] text-white/40 mt-0.5 truncate w-7 text-center">{a.name.split(' ')[0]}</span>
+              <span className="text-[7px] text-white/40 mt-0.5 truncate w-8 text-center">{a.name.split(' ')[0]}</span>
             </button>
           );
         })}

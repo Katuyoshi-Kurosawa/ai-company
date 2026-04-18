@@ -198,7 +198,7 @@ export function MtgScreen({ agents, theme }: Props) {
                   onChange={() => toggleParticipant(a.id)}
                   className="rounded"
                 />
-                <PixelCharacter visual={a.visual} size="sm" active={a.active} />
+                <span className="text-lg">{a.icon}</span>
                 <span className="text-sm">{a.name} {a.title}</span>
                 {config.chair === a.id && (
                   <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded ml-auto">議長</span>
