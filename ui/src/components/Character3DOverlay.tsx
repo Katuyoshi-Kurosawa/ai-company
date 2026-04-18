@@ -20,14 +20,23 @@ function isoTo2D(gx: number, gy: number) {
 }
 
 // Convert isometric 2D position to 3D world coords for the overlay
+// Must account for SVG preserveAspectRatio="xMidYMid meet" centering
 function isoToWorld(gx: number, gy: number, containerW: number, containerH: number) {
   const pos2d = isoTo2D(gx, gy);
-  // Normalize to -1..1 range based on SVG viewBox
-  const nx = (pos2d.x / VW) * 2 - 1;
-  const ny = -((pos2d.y / VH) * 2 - 1);
-  // Scale to world units (camera frustum size)
+  // SVG "meet" scales uniformly to fit, then centers
+  const scale = Math.min(containerW / VW, containerH / VH);
+  const renderedW = VW * scale;
+  const renderedH = VH * scale;
+  const offsetX = (containerW - renderedW) / 2;
+  const offsetY = (containerH - renderedH) / 2;
+  // Map SVG viewBox coords to actual screen pixel position
+  const screenX = offsetX + pos2d.x * scale;
+  const screenY = offsetY + pos2d.y * scale;
+  // Convert screen position to 3D world coords (orthographic camera)
   const aspect = containerW / containerH;
   const frustumH = 10;
+  const nx = (screenX / containerW) * 2 - 1;
+  const ny = -((screenY / containerH) * 2 - 1);
   return {
     x: nx * frustumH * aspect / 2,
     y: ny * frustumH / 2,
