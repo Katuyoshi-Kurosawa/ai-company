@@ -6,7 +6,7 @@ import { LEVELS } from '../data/constants';
 const STORAGE_KEY = 'ai-company-data';
 const NOTIFICATIONS_KEY = 'ai-company-notifications';
 const SCHEMA_VERSION_KEY = 'ai-company-schema-version';
-const CURRENT_SCHEMA_VERSION = 4; // bump when defaultCompany structure changes
+const CURRENT_SCHEMA_VERSION = 5; // bump when defaultCompany structure changes
 
 function syncWithDefaults(cached: Company): Company {
   const defaultAgentMap = new Map(defaultCompany.agents.map(a => [a.id, a]));
@@ -17,7 +17,7 @@ function syncWithDefaults(cached: Company): Company {
     .filter(a => defaultAgentMap.has(a.id)) // remove agents deleted from defaults
     .map(a => {
       const def = defaultAgentMap.get(a.id)!;
-      return { ...a, parentId: def.parentId, dept: def.dept, title: def.title, personality: def.personality, expertise: def.expertise, stats: def.stats, visual: def.visual };
+      return { ...a, parentId: def.parentId, dept: def.dept, title: def.title, personality: def.personality, expertise: def.expertise, stats: def.stats, visual: def.visual, skills: a.skills?.length ? a.skills : def.skills };
     });
 
   // Add new agents from defaults that aren't in cache

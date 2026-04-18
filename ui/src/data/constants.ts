@@ -97,6 +97,52 @@ export const ACCESSORIES = [
   { id: 'tie-pin', label: 'タイピン' },
 ];
 
+export interface SkillInfo {
+  id: string;
+  name: string;
+  icon: string;
+  category: 'technical' | 'analysis' | 'creative' | 'management' | 'communication';
+}
+
+export const SKILL_CATEGORIES = [
+  { id: 'technical', label: '技術', icon: '💻' },
+  { id: 'analysis', label: '分析', icon: '📊' },
+  { id: 'creative', label: 'クリエイティブ', icon: '🎨' },
+  { id: 'management', label: 'マネジメント', icon: '📋' },
+  { id: 'communication', label: 'コミュニケーション', icon: '💬' },
+] as const;
+
+export const SKILLS: SkillInfo[] = [
+  { id: 'coding', name: 'コーディング', icon: '⌨️', category: 'technical' },
+  { id: 'architecture', name: 'アーキテクチャ設計', icon: '🏗️', category: 'technical' },
+  { id: 'debugging', name: 'デバッグ', icon: '🐛', category: 'technical' },
+  { id: 'code-review', name: 'コードレビュー', icon: '🔍', category: 'technical' },
+  { id: 'testing', name: 'テスト設計', icon: '🧪', category: 'technical' },
+  { id: 'devops', name: 'DevOps/CI', icon: '⚙️', category: 'technical' },
+  { id: 'security', name: 'セキュリティ', icon: '🛡️', category: 'technical' },
+  { id: 'data-analysis', name: 'データ分析', icon: '📈', category: 'analysis' },
+  { id: 'market-research', name: '市場調査', icon: '🌐', category: 'analysis' },
+  { id: 'ux-research', name: 'UXリサーチ', icon: '🎯', category: 'analysis' },
+  { id: 'risk-assessment', name: 'リスク評価', icon: '⚠️', category: 'analysis' },
+  { id: 'quality-mgmt', name: '品質管理', icon: '✅', category: 'analysis' },
+  { id: 'trend-analysis', name: 'トレンド分析', icon: '📡', category: 'analysis' },
+  { id: 'ui-design', name: 'UIデザイン', icon: '🎨', category: 'creative' },
+  { id: 'copywriting', name: 'コピーライティング', icon: '✍️', category: 'creative' },
+  { id: 'brainstorming', name: 'ブレインストーミング', icon: '💡', category: 'creative' },
+  { id: 'prototyping', name: 'プロトタイピング', icon: '🔧', category: 'creative' },
+  { id: 'branding', name: 'ブランディング', icon: '✨', category: 'creative' },
+  { id: 'project-mgmt', name: 'プロジェクト管理', icon: '📋', category: 'management' },
+  { id: 'team-building', name: 'チームビルディング', icon: '🤝', category: 'management' },
+  { id: 'negotiation', name: '交渉術', icon: '🤝', category: 'management' },
+  { id: 'mentoring', name: 'メンタリング', icon: '👥', category: 'management' },
+  { id: 'strategy', name: '経営戦略', icon: '♟️', category: 'management' },
+  { id: 'presentation', name: 'プレゼンテーション', icon: '🎤', category: 'communication' },
+  { id: 'documentation', name: 'ドキュメント作成', icon: '📝', category: 'communication' },
+  { id: 'facilitation', name: 'ファシリテーション', icon: '🗣️', category: 'communication' },
+  { id: 'customer-support', name: 'カスタマーサポート', icon: '💬', category: 'communication' },
+  { id: 'coaching', name: 'コーチング', icon: '🎓', category: 'communication' },
+];
+
 export const THEMES = {
   dark: { label: 'エグゼクティブ', icon: '🌙', bg: '#0f1117', surface: '#181b25', border: '#262a38', text: '#d8dce8', muted: '#6b7394' },
   light: { label: 'モダンオフィス', icon: '☀️', bg: '#f7f8fc', surface: '#ffffff', border: '#e2e5ef', text: '#1a1e2e', muted: '#6b7394' },

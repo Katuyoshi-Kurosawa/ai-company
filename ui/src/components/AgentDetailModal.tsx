@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import type { Agent } from '../types';
-import { LEVELS, BADGES, STAT_LABELS, STAT_KEYS, EMOJI_OPTIONS, ROOMS, HAIR_STYLES, HAIR_COLORS, SUIT_COLORS, ACCESSORIES } from '../data/constants';
+import { LEVELS, BADGES, STAT_LABELS, STAT_KEYS, EMOJI_OPTIONS, ROOMS, HAIR_STYLES, HAIR_COLORS, SUIT_COLORS, ACCESSORIES, SKILLS } from '../data/constants';
 import { RadarChart } from './RadarChart';
 import { calcCompatibility } from '../hooks/useCompanyStore';
 import { PixelCharacter } from './PixelCharacter';
+import { AvatarSetupWizard } from './AvatarSetupWizard';
 
 interface Props {
   agent: Agent;
@@ -19,6 +20,7 @@ export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props)
   const [tab, setTab] = useState<Tab>('status');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(agent);
+  const [showWizard, setShowWizard] = useState(false);
 
   const levelInfo = LEVELS.find(l => l.level === agent.level) ?? LEVELS[0];
   const nextLevel = LEVELS.find(l => l.requiredExp > agent.exp);
@@ -127,6 +129,30 @@ export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props)
           {/* VISUAL TAB */}
           {tab === 'visual' && (
             <div className="space-y-5">
+              {/* Interview wizard button */}
+              <button onClick={() => setShowWizard(true)}
+                className="w-full py-3 rounded-xl font-semibold cursor-pointer text-sm transition border border-indigo-500/30 hover:border-indigo-400/50"
+                style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15))' }}>
+                🎤 インタビュー形式でプロフィールを設定
+              </button>
+
+              {/* Skills display */}
+              {agent.skills?.length > 0 && (
+                <div>
+                  <label className="text-xs font-semibold block mb-2" style={{ color: S.muted }}>スキル</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {agent.skills.map(id => {
+                      const sk = SKILLS.find(s => s.id === id);
+                      return sk ? (
+                        <span key={id} className="text-xs px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                          {sk.icon} {sk.name}
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold block mb-2" style={{ color: S.muted }}>性別</label>
@@ -621,6 +647,15 @@ export function AgentDetailModal({ agent, allAgents, onClose, onUpdate }: Props)
           )}
         </div>
       </div>
+
+      {/* Avatar Setup Wizard */}
+      {showWizard && (
+        <AvatarSetupWizard
+          agent={agent}
+          onUpdate={(id, updates) => { onUpdate(id, updates); setForm(prev => ({ ...prev, ...updates })); }}
+          onClose={() => setShowWizard(false)}
+        />
+      )}
     </div>
   );
 }

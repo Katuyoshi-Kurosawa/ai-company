@@ -43,16 +43,6 @@ export interface MarketingSettings {
   trendAnalysis: boolean;         // トレンド分析
 }
 
-// 広報部長固有設定
-export interface PrSettings {
-  internalNewsEnabled: boolean;    // 社内ニュース自動配信
-  reportToOwner: 'realtime' | 'hourly' | 'daily';  // オーナーへの報告頻度
-  notifyFormat: 'summary' | 'detailed' | 'visual';  // 通知フォーマット
-  evolutionMode: boolean;          // 通知品質の自動進化
-  trackTopics: string[];           // 追跡トピック
-  digestEnabled: boolean;          // 日次ダイジェスト生成
-}
-
 // 秘書部長固有設定
 export interface ChiefSecretarySettings {
   supportTargets: string[];        // サポート対象の幹部ID
@@ -84,16 +74,6 @@ export interface RdSettings {
   dailyIdeaQuota: number;          // 日次アイデア目標数
 }
 
-// UXリサーチ部長固有設定
-export interface UxResearchSettings {
-  userTestingEnabled: boolean;     // ユーザーテスト実施
-  personaCount: number;            // ペルソナ数
-  researchMethods: string[];       // 調査手法
-  insightDb: string;               // インサイト保存先
-  competitorUxTracking: boolean;   // 競合UX追跡
-  accessibilityAudit: boolean;     // アクセシビリティ監査
-}
-
 // 人事部長固有設定
 export interface HrSettings {
   trainingEnabled: boolean;       // 社員教育モード
@@ -114,6 +94,7 @@ export interface Agent {
   expertise: string;
   model: 'opus' | 'sonnet' | 'haiku';
   tools: string[];
+  skills: string[];
   maxTurns: number;
   outputFile: string;
   active: boolean;
@@ -130,8 +111,6 @@ export interface Agent {
   secretarySettings?: SecretarySettings;
   marketingSettings?: MarketingSettings;
   hrSettings?: HrSettings;
-  prSettings?: PrSettings;
-  uxResearchSettings?: UxResearchSettings;
   rdSettings?: RdSettings;
   csSettings?: CsSettings;
   chiefSecretarySettings?: ChiefSecretarySettings;
