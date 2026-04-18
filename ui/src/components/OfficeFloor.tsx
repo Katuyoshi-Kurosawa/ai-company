@@ -237,8 +237,24 @@ function AgentBubblePanel({ agent, onClose, onShowDetail }: {
   agent: Agent; onClose: () => void; onShowDetail: () => void;
 }) {
   const statColors = ['#ef4444', '#3b82f6', '#eab308', '#a855f7', '#22c55e'];
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [adjust, setAdjust] = useState({ x: 0, y: 0 });
+
+  // パネルが画面外にはみ出す場合、位置を自動調整
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    let dx = 0, dy = 0;
+    if (rect.left < 8) dx = 8 - rect.left;
+    if (rect.right > window.innerWidth - 8) dx = window.innerWidth - 8 - rect.right;
+    if (rect.top < 8) dy = 8 - rect.top;
+    if (dx !== 0 || dy !== 0) setAdjust({ x: dx, y: dy });
+  }, []);
+
   return (
-    <div className="absolute z-50 pointer-events-auto" style={{ bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 8 }}>
+    <div ref={panelRef} className="absolute z-50 pointer-events-auto"
+      style={{ bottom: '100%', left: '50%', transform: `translate(calc(-50% + ${adjust.x}px), ${adjust.y}px)`, marginBottom: 8 }}>
       <div className="relative bg-slate-900/95 backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-2xl min-w-[220px]"
         style={{ boxShadow: '0 0 20px rgba(99,102,241,0.2)' }}>
         {/* Close button */}
@@ -293,7 +309,8 @@ function AgentBubblePanel({ agent, onClose, onShowDetail }: {
         </button>
 
         {/* Bubble arrow */}
-        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-slate-900/95 border-r border-b border-white/20" />
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-slate-900/95 border-r border-b border-white/20"
+          style={{ marginLeft: -adjust.x }} />
       </div>
     </div>
   );
@@ -669,7 +686,7 @@ export function OfficeFloor({
               const activity = activities?.get(agent.id);
               return (
                 <div key={agent.id} className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, -100%)', zIndex: showBubble ? 50 : 20 }}>
-                  {showBubble && (
+                  {showBubble ? (
                     <div className="pointer-events-auto">
                       <AgentBubblePanel
                         agent={agent}
@@ -677,10 +694,9 @@ export function OfficeFloor({
                         onShowDetail={() => { setBubbleAgentId(null); onShowDetail?.(agent); }}
                       />
                     </div>
-                  )}
-                  {(activity?.speech || autoChat.messages.get(agent.id)) && (
+                  ) : (activity?.speech || autoChat.messages.get(agent.id)) ? (
                     <SpeechBubble text={activity?.speech || autoChat.messages.get(agent.id)!.text} position="top" />
-                  )}
+                  ) : null}
                   <div className="text-center mt-0.5">
                     <div className="text-[9px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate max-w-[60px] leading-tight">
                       {agent.name}
