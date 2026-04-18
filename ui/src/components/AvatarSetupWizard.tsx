@@ -39,7 +39,13 @@ export function AvatarSetupWizard({ agent, onUpdate, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typing, setTyping] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepIndex = STEPS.indexOf(step);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   // Add interviewer message when step changes
   useEffect(() => {
@@ -53,9 +59,11 @@ export function AvatarSetupWizard({ agent, onUpdate, onClose }: Props) {
 
   // Auto-scroll chat
   useEffect(() => {
-    if (chatRef.current) {
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
-    }
+    requestAnimationFrame(() => {
+      if (chatRef.current) {
+        chatRef.current.scrollTop = chatRef.current.scrollHeight;
+      }
+    });
   }, [messages, typing]);
 
   const addResponse = (text: string) => {
@@ -69,43 +77,49 @@ export function AvatarSetupWizard({ agent, onUpdate, onClose }: Props) {
     }
   };
 
+  // Fix: construct newVisual inline to avoid stale closure
   const handleGender = (g: 'male' | 'female') => {
-    setVisual(v => ({ ...v, gender: g }));
+    const newVisual = { ...visual, gender: g };
+    setVisual(newVisual);
     addResponse(g === 'male' ? '男性です' : '女性です');
-    onUpdate(agent.id, { visual: { ...visual, gender: g } });
-    setTimeout(nextStep, 300);
+    onUpdate(agent.id, { visual: newVisual });
+    timerRef.current = setTimeout(nextStep, 300);
   };
 
   const handleHairStyle = (id: string) => {
     const label = HAIR_STYLES.find(h => h.id === id)?.label ?? id;
-    setVisual(v => ({ ...v, hairStyle: id }));
+    const newVisual = { ...visual, hairStyle: id };
+    setVisual(newVisual);
     addResponse(label);
-    onUpdate(agent.id, { visual: { ...visual, hairStyle: id } });
-    setTimeout(nextStep, 300);
+    onUpdate(agent.id, { visual: newVisual });
+    timerRef.current = setTimeout(nextStep, 300);
   };
 
   const handleHairColor = (id: string) => {
     const label = HAIR_COLORS.find(c => c.id === id)?.label ?? id;
-    setVisual(v => ({ ...v, hairColor: id }));
+    const newVisual = { ...visual, hairColor: id };
+    setVisual(newVisual);
     addResponse(label);
-    onUpdate(agent.id, { visual: { ...visual, hairColor: id } });
-    setTimeout(nextStep, 300);
+    onUpdate(agent.id, { visual: newVisual });
+    timerRef.current = setTimeout(nextStep, 300);
   };
 
   const handleSuit = (id: string) => {
     const label = SUIT_COLORS.find(c => c.id === id)?.label ?? id;
-    setVisual(v => ({ ...v, suitColor: id }));
+    const newVisual = { ...visual, suitColor: id };
+    setVisual(newVisual);
     addResponse(label);
-    onUpdate(agent.id, { visual: { ...visual, suitColor: id } });
-    setTimeout(nextStep, 300);
+    onUpdate(agent.id, { visual: newVisual });
+    timerRef.current = setTimeout(nextStep, 300);
   };
 
   const handleAccessory = (id: string) => {
     const label = ACCESSORIES.find(a => a.id === id)?.label ?? id;
-    setVisual(v => ({ ...v, accessory: id }));
+    const newVisual = { ...visual, accessory: id };
+    setVisual(newVisual);
     addResponse(label);
-    onUpdate(agent.id, { visual: { ...visual, accessory: id } });
-    setTimeout(nextStep, 300);
+    onUpdate(agent.id, { visual: newVisual });
+    timerRef.current = setTimeout(nextStep, 300);
   };
 
   const handleSkillToggle = (id: string) => {
@@ -116,7 +130,7 @@ export function AvatarSetupWizard({ agent, onUpdate, onClose }: Props) {
     const names = skills.map(id => SKILLS.find(s => s.id === id)?.name ?? id);
     addResponse(names.length > 0 ? names.join('、') : 'なし');
     onUpdate(agent.id, { skills });
-    setTimeout(nextStep, 300);
+    timerRef.current = setTimeout(nextStep, 300);
   };
 
   const handleRoom = (id: RoomId) => {
@@ -124,15 +138,12 @@ export function AvatarSetupWizard({ agent, onUpdate, onClose }: Props) {
     setRoom(id);
     addResponse(label);
     onUpdate(agent.id, { room: id });
-    setTimeout(nextStep, 300);
+    timerRef.current = setTimeout(nextStep, 300);
   };
 
   const handleComplete = () => {
     onClose();
   };
-
-  // Current visual for preview
-  const previewVisual = visual;
 
   // Grouped skills by category
   const groupedSkills = useMemo(() => {
@@ -143,7 +154,8 @@ export function AvatarSetupWizard({ agent, onUpdate, onClose }: Props) {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      onClick={(e) => { e.stopPropagation(); onClose(); }}>
       <div className="bg-[#12141e] border border-[#2a2e40] rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex"
         onClick={e => e.stopPropagation()}>
 
@@ -153,7 +165,7 @@ export function AvatarSetupWizard({ agent, onUpdate, onClose }: Props) {
           <div className="relative mb-4">
             <div className="w-40 h-40 rounded-full flex items-center justify-center"
               style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)' }}>
-              <PixelCharacter visual={previewVisual} size="lg" active />
+              <PixelCharacter visual={visual} size="lg" active />
             </div>
             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-24 h-3 rounded-full bg-black/30 blur-sm" />
           </div>
@@ -357,7 +369,7 @@ export function AvatarSetupWizard({ agent, onUpdate, onClose }: Props) {
             {step === 'room' && !typing && (
               <div className="grid grid-cols-2 gap-2">
                 {ROOMS.map(r => (
-                  <button key={r.id} onClick={() => handleRoom(r.id as RoomId)}
+                  <button key={r.id} onClick={() => handleRoom(r.id)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm cursor-pointer transition border text-left ${
                       room === r.id
                         ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'

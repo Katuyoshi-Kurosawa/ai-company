@@ -755,13 +755,13 @@ export function OfficeFloor({
       {/* Bottom-left: Minimap + Zoom controls */}
       <Minimap activeRooms={activeRooms} isLive={isLive} />
       <div className="absolute bottom-[110px] left-3 z-30 flex flex-col gap-1">
-        <button onClick={() => setZoom(prev => Math.min(4, prev + 0.3))}
+        <button onClick={() => { setZoom(prev => Math.min(4, prev + 0.3)); setManualZoom(true); }}
           className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-white/70 text-sm font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">+</button>
         <button onClick={() => { setZoom(1); setManualZoom(false); setPanOffset({ x: 0, y: 0 }); setZoomTarget(null); }}
           className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-[9px] text-white/50 cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center font-mono">
           {Math.round(zoom * 100)}%
         </button>
-        <button onClick={() => setZoom(prev => Math.max(0.5, prev - 0.3))}
+        <button onClick={() => { setZoom(prev => Math.max(0.5, prev - 0.3)); setManualZoom(true); }}
           className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-white/70 text-sm font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">-</button>
       </div>
 

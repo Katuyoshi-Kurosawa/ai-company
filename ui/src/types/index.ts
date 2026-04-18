@@ -94,7 +94,7 @@ export interface Agent {
   expertise: string;
   model: 'opus' | 'sonnet' | 'haiku';
   tools: string[];
-  skills: string[];
+  skills: string[]; // may be undefined in legacy data, use (agent.skills || [])
   maxTurns: number;
   outputFile: string;
   active: boolean;

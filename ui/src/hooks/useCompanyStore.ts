@@ -17,7 +17,7 @@ function syncWithDefaults(cached: Company): Company {
     .filter(a => defaultAgentMap.has(a.id)) // remove agents deleted from defaults
     .map(a => {
       const def = defaultAgentMap.get(a.id)!;
-      return { ...a, parentId: def.parentId, dept: def.dept, title: def.title, personality: def.personality, expertise: def.expertise, stats: def.stats, visual: def.visual, skills: a.skills?.length ? a.skills : def.skills };
+      return { ...a, parentId: def.parentId, dept: def.dept, title: def.title, personality: def.personality, expertise: def.expertise, stats: def.stats, visual: def.visual, skills: a.skills !== undefined ? a.skills : def.skills };
     });
 
   // Add new agents from defaults that aren't in cache
@@ -39,9 +39,7 @@ function loadCompanies(): Company[] {
     const savedVersion = Number(localStorage.getItem(SCHEMA_VERSION_KEY) || '0');
 
     if (savedVersion < CURRENT_SCHEMA_VERSION) {
-      companies = companies.map(c =>
-        c.id === defaultCompany.id ? syncWithDefaults(c) : c
-      );
+      companies = companies.map(c => syncWithDefaults(c));
       localStorage.setItem(STORAGE_KEY, JSON.stringify(companies));
       localStorage.setItem(SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA_VERSION));
     }
