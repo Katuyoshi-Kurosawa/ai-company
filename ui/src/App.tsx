@@ -413,6 +413,8 @@ export default function App() {
           commandLabel={executionLabel}
           outputDir={outputDir}
           onClose={() => { setExecuting(false); relay.reset(); }}
+          onAbort={() => relay.abort()}
+          stalled={relay.stalled}
         />
       )}
     </div>

@@ -15,6 +15,8 @@ interface Props {
   commandLabel: string;
   outputDir: string | null;
   onClose: () => void;
+  onAbort?: () => void;
+  stalled?: boolean;
 }
 
 function detectPhase(lines: LogLine[]): { phase: string; progress: number } {
@@ -93,7 +95,7 @@ function fileIcon(name: string): string {
 }
 
 // 下部パネル: スライドアップで表示
-export function ExecutionPanel({ agents, status, lines, elapsed, error, commandLabel, outputDir, onClose }: Props) {
+export function ExecutionPanel({ agents, status, lines, elapsed, error, commandLabel, outputDir, onClose, onAbort, stalled }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [panelTab, setPanelTab] = useState<'none' | 'log' | 'files'>('none');
   const [activeAgentIdx, setActiveAgentIdx] = useState(0);
@@ -196,6 +198,12 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
             }`}>
             ログ ({lines.length})
           </button>
+          {isRunning && onAbort && (
+            <button onClick={onAbort}
+              className="px-2.5 py-1 bg-red-500/20 hover:bg-red-500/40 text-red-300 rounded text-[10px] cursor-pointer transition-colors font-bold">
+              ⏹ 中断
+            </button>
+          )}
           <button onClick={() => setExpanded(false)}
             className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] text-white/60 cursor-pointer transition-colors">
             最小化
@@ -223,6 +231,22 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
           />
         </div>
       </div>
+
+      {/* Stall alert */}
+      {isRunning && stalled && (
+        <div className="mx-4 mb-2 px-3 py-2 bg-amber-500/15 border border-amber-400/30 rounded-lg flex items-center gap-2">
+          <span className="text-amber-400 text-sm">⚠️</span>
+          <span className="text-xs text-amber-300 flex-1">
+            3分以上ログ出力がありません。プロセスが停滞している可能性があります。
+          </span>
+          {onAbort && (
+            <button onClick={onAbort}
+              className="px-2 py-1 bg-red-500/30 hover:bg-red-500/50 text-red-300 rounded text-[10px] font-bold cursor-pointer transition-colors">
+              中断する
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Agent avatars row */}
       <div className="px-4 pb-3 flex items-center gap-1 overflow-x-auto">

@@ -28,6 +28,8 @@ export function useRelay() {
   const [error, setError] = useState<string | null>(null);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
   const [activeType, setActiveType] = useState<string | null>(null);
+  const [stalled, setStalled] = useState(false);
+  const lastLineTimeRef = useRef<number>(Date.now());
 
   // Refs for avoiding stale closures
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -117,12 +119,27 @@ export function useRelay() {
           return;
         }
         setLines(prev => [...prev, data]);
+        lastLineTimeRef.current = Date.now();
+        setStalled(false);
       } catch (err) {
         console.warn('[relay] SSEメッセージパースエラー:', err);
       }
     };
 
+    // 停滞検知タイマー（3分ログなしで警告）
+    const stallCheckInterval = setInterval(() => {
+      if (statusRef.current !== 'running') {
+        clearInterval(stallCheckInterval);
+        return;
+      }
+      const silentMs = Date.now() - lastLineTimeRef.current;
+      if (silentMs >= 180_000) { // 3分
+        setStalled(true);
+      }
+    }, 30_000);
+
     evtSource.onerror = () => {
+      clearInterval(stallCheckInterval);
       console.warn(`[relay] SSEエラー: ${id}, receivedStatus=${receivedStatus}, currentStatus=${statusRef.current}`);
       evtSource.close();
       evtSourceRef.current = null;
@@ -221,6 +238,17 @@ export function useRelay() {
     }
   }, [connectToStream, stopTimer]);
 
+  // ── Abort (ジョブ中断) ────────────────────────────────────
+
+  const abort = useCallback(async () => {
+    if (!jobId) return;
+    try {
+      await fetch(`${RELAY_URL}/abort/${jobId}`, { method: 'POST' });
+    } catch {
+      console.warn('[relay] 中断リクエスト失敗');
+    }
+  }, [jobId]);
+
   // ── Reset ──────────────────────────────────────────────────
 
   const reset = useCallback(() => {
@@ -231,9 +259,10 @@ export function useRelay() {
     setElapsed(0);
     setError(null);
     stopTimer();
+    setStalled(false);
     // reset後に新しいジョブが始まる可能性があるので再接続チェックを有効化
     reconnectedRef.current = false;
   }, [stopTimer, closeStream]);
 
-  return { connected, jobId, status, lines, elapsed, error, execute, reset, checkConnection, activeLabel, activeType };
+  return { connected, jobId, status, lines, elapsed, error, execute, reset, abort, checkConnection, activeLabel, activeType, stalled };
 }

@@ -14,6 +14,11 @@ const PORT = Number(process.argv[2]) || 3939;
 const PROJECT_DIR = __dirname;
 const jobs = new Map();
 
+// ── 設定 ──────────────────────────────────────────
+const JOB_TIMEOUT_MS = 15 * 60 * 1000; // 15分でタイムアウト
+const STALL_CHECK_INTERVAL_MS = 30 * 1000; // 30秒ごとに停滞チェック
+const STALL_THRESHOLD_MS = 3 * 60 * 1000; // 3分ログなしで停滞と判定
+
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -53,6 +58,70 @@ function getActiveJob() {
   return null;
 }
 
+// ── ジョブ終了処理（共通） ──────────────────────────
+function finishJob(job, status, reason) {
+  if (job.status !== 'running') return; // 二重終了防止
+  job.status = status;
+  job.finishedAt = Date.now();
+
+  // タイマークリア
+  if (job.timeoutTimer) { clearTimeout(job.timeoutTimer); job.timeoutTimer = null; }
+  if (job.stallTimer) { clearInterval(job.stallTimer); job.stallTimer = null; }
+
+  const push = (text, stream = 'system') => {
+    const entry = { time: Date.now(), text, stream };
+    job.lines.push(entry);
+    for (const cb of job.listeners) {
+      try { cb(entry); } catch { /* ignore */ }
+    }
+  };
+
+  if (reason) push(reason, 'stderr');
+  push(`__STATUS__:${status}`);
+}
+
+// ── ジョブを中断（プロセスkill） ──────────────────────
+function abortJob(job, reason) {
+  if (job.status !== 'running') return false;
+  if (job.proc) {
+    try {
+      // プロセスグループごとkill（シェル経由の子プロセスも含む）
+      process.kill(-job.proc.pid, 'SIGTERM');
+    } catch {
+      try { job.proc.kill('SIGTERM'); } catch { /* ignore */ }
+    }
+  }
+  finishJob(job, 'error', reason || 'ジョブが中断されました');
+  return true;
+}
+
+// ── 停滞チェック開始 ──────────────────────────────────
+function startStallCheck(job) {
+  job.lastLineAt = Date.now();
+  job.stalled = false;
+
+  job.stallTimer = setInterval(() => {
+    if (job.status !== 'running') {
+      clearInterval(job.stallTimer);
+      job.stallTimer = null;
+      return;
+    }
+    const silentMs = Date.now() - job.lastLineAt;
+    if (silentMs >= STALL_THRESHOLD_MS && !job.stalled) {
+      job.stalled = true;
+      const stallEntry = {
+        time: Date.now(),
+        text: `⚠️ ${Math.floor(silentMs / 1000)}秒間ログ出力がありません。プロセスが停滞している可能性があります。`,
+        stream: 'system',
+      };
+      job.lines.push(stallEntry);
+      for (const cb of job.listeners) {
+        try { cb(stallEntry); } catch { /* ignore */ }
+      }
+    }
+  }, STALL_CHECK_INTERVAL_MS);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
@@ -79,6 +148,7 @@ const server = http.createServer(async (req, res) => {
         startedAt: active.startedAt,
         lineCount: active.lines.length,
         routeType: active.routeType || null,
+        stalled: active.stalled || false,
       });
     }
     return json(res, 200, null);
@@ -112,6 +182,17 @@ const server = http.createServer(async (req, res) => {
     } catch {
       return json(res, 404, { error: 'File not found' });
     }
+  }
+
+  // ── ジョブ中断 ────────────────────────────────────
+  const abortMatch = url.pathname.match(/^\/abort\/(.+)$/);
+  if (abortMatch && req.method === 'POST') {
+    const id = abortMatch[1];
+    const job = jobs.get(id);
+    if (!job) return json(res, 404, { error: 'Job not found' });
+    if (job.status !== 'running') return json(res, 400, { error: 'Job is not running' });
+    abortJob(job, 'ユーザーによりジョブが中断されました');
+    return json(res, 200, { ok: true, id });
   }
 
   // Execute command
@@ -161,19 +242,30 @@ const server = http.createServer(async (req, res) => {
       id, type, label, status: 'running', startedAt: Date.now(),
       lines: [], listeners: new Set(),
       routeType: args.routeType || null,
+      proc: null,
+      timeoutTimer: null,
+      stallTimer: null,
+      lastLineAt: Date.now(),
+      stalled: false,
     };
     jobs.set(id, job);
 
     const proc = spawn(cmd, cmdArgs, {
       cwd: PROJECT_DIR,
       shell: true,
+      detached: true, // プロセスグループ作成（グループkill用）
       env: { ...process.env, FORCE_COLOR: '0' },
     });
+    job.proc = proc;
 
     const push = (text, stream = 'stdout') => {
       const entry = { time: Date.now(), text, stream };
       job.lines.push(entry);
-      for (const cb of job.listeners) cb(entry);
+      job.lastLineAt = Date.now();
+      if (job.stalled) job.stalled = false; // ログ再開で停滞解除
+      for (const cb of job.listeners) {
+        try { cb(entry); } catch { /* ignore */ }
+      }
     };
 
     proc.stdout.on('data', d => {
@@ -183,16 +275,22 @@ const server = http.createServer(async (req, res) => {
       d.toString().split('\n').filter(Boolean).forEach(line => push(line, 'stderr'));
     });
     proc.on('close', code => {
-      job.status = code === 0 ? 'done' : 'error';
-      job.exitCode = code;
-      job.finishedAt = Date.now();
-      push(`__STATUS__:${job.status}`, 'system');
+      finishJob(job, code === 0 ? 'done' : 'error');
     });
     proc.on('error', err => {
-      job.status = 'error';
-      push(`Error: ${err.message}`, 'stderr');
-      push('__STATUS__:error', 'system');
+      finishJob(job, 'error', `Error: ${err.message}`);
     });
+
+    // タイムアウト設定
+    job.timeoutTimer = setTimeout(() => {
+      if (job.status === 'running') {
+        console.log(`[relay] ジョブ ${id} がタイムアウト (${JOB_TIMEOUT_MS / 1000}秒)`);
+        abortJob(job, `⏰ タイムアウト: ${Math.floor(JOB_TIMEOUT_MS / 60000)}分経過したためジョブを自動停止しました`);
+      }
+    }, JOB_TIMEOUT_MS);
+
+    // 停滞チェック開始
+    startStallCheck(job);
 
     return json(res, 200, { id });
   }
@@ -251,6 +349,7 @@ const server = http.createServer(async (req, res) => {
       label: j.label || '',
       startedAt: j.startedAt, finishedAt: j.finishedAt,
       lineCount: j.lines.length,
+      stalled: j.stalled || false,
     }));
     return json(res, 200, list);
   }
@@ -262,5 +361,7 @@ server.listen(PORT, () => {
   console.log(`\n🏢 AI会社リレーサーバー起動`);
   console.log(`   http://localhost:${PORT}`);
   console.log(`   プロジェクト: ${PROJECT_DIR}`);
+  console.log(`   タイムアウト: ${JOB_TIMEOUT_MS / 60000}分`);
+  console.log(`   停滞検知: ${STALL_THRESHOLD_MS / 1000}秒`);
   console.log(`\n   UIから実行可能になりました。\n`);
 });
