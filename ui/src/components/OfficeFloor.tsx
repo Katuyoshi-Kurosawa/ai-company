@@ -34,6 +34,25 @@ interface Props {
 }
 
 // ══════════════════════════════════════════
+// Department Colors
+// ══════════════════════════════════════════
+const DEPT_COLORS: Record<string, string> = {
+  '経営': '#f59e0b',       // amber - CEO
+  '秘書': '#ec4899',       // pink
+  'マーケティング': '#f97316', // orange
+  '人事': '#a855f7',       // purple
+  'CS': '#06b6d4',         // cyan
+  '研究開発': '#10b981',    // emerald
+  '企画': '#3b82f6',       // blue
+  '設計': '#6366f1',       // indigo
+  '開発': '#8b5cf6',       // violet
+  'QA': '#ef4444',         // red
+  'デザイン': '#f472b6',    // pink-light
+  '資料作成': '#14b8a6',    // teal
+  'default': '#94a3b8',    // slate
+};
+
+// ══════════════════════════════════════════
 // Isometric Engine
 // ══════════════════════════════════════════
 const VW = 1000, VH = 520;
@@ -441,7 +460,10 @@ function BottomDock({ agents, selectedId, onSelect, activities }: {
               {isWorking && (
                 <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
               )}
-              <span className="text-[7px] text-white/40 mt-0.5 truncate w-8 text-center">{a.name.split(' ')[0]}</span>
+              <span className="text-[7px] text-white/40 mt-0.5 truncate w-10 text-center">{a.name.split(' ')[0]}</span>
+              <span className="text-[5px] truncate w-10 text-center" style={{ color: DEPT_COLORS[a.dept] || DEPT_COLORS.default }}>
+                {a.title.replace(/部長$/, '')}
+              </span>
             </button>
           );
         })}
@@ -683,6 +705,9 @@ export function OfficeFloor({
               const pctT = ((pos.y - 10) / VH) * 100;
               const showBubble = bubbleAgentId === agent.id;
               const activity = activities?.get(agent.id);
+              const deptColor = DEPT_COLORS[agent.dept] || DEPT_COLORS.default;
+              const isOpus = agent.model === 'opus';
+              const shortTitle = agent.title.replace(/部長$/, '').replace(/CEO/, 'CEO');
               return (
                 <div key={agent.id} className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, -100%)', zIndex: showBubble ? 50 : 20 }}>
                   {showBubble ? (
@@ -697,8 +722,18 @@ export function OfficeFloor({
                     <SpeechBubble text={activity?.speech || autoChat.messages.get(agent.id)!.text} position="top" />
                   ) : null}
                   <div className="text-center mt-0.5">
-                    <div className="text-[9px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate max-w-[60px] leading-tight">
-                      {agent.name}
+                    {/* Name plate with dept color */}
+                    <div className="inline-flex flex-col items-center rounded-md px-1.5 py-0.5"
+                      style={{ background: `${deptColor}33`, border: `1px solid ${deptColor}55` }}>
+                      <div className="flex items-center gap-0.5">
+                        {isOpus && <span className="text-[6px]" style={{ color: '#fbbf24' }}>★</span>}
+                        <span className="text-[9px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate max-w-[60px] leading-tight">
+                          {agent.name.split(' ')[0]}
+                        </span>
+                      </div>
+                      <span className="text-[7px] font-medium truncate max-w-[64px] leading-none" style={{ color: deptColor }}>
+                        {shortTitle}
+                      </span>
                     </div>
                     {activity && activity.action !== 'idle' && (
                       <span className={`inline-block text-[7px] mt-0.5 px-1 py-px rounded-full font-bold
