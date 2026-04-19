@@ -310,7 +310,7 @@ export function CommandPalette({ connected, onExecute, history, theme }: Props) 
           </div>
           <div className="flex items-center gap-1.5">
             <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
-            {connected ? 'リレー接続中' : 'リレー未接続'}
+            {connected ? 'リレー接続済み' : 'リレー未接続'}
           </div>
         </div>
       </div>

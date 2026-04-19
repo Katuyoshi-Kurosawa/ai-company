@@ -100,7 +100,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-3 h-3 rounded-full ${relay.connected ? 'bg-green-400 shadow-lg shadow-green-400/50' : 'bg-red-400 shadow-lg shadow-red-400/50'}`} />
             <span className="font-bold text-sm">
-              {relay.connected ? 'リレー接続中' : 'リレー未接続'}
+              {relay.connected ? 'リレー接続済み' : 'リレー未接続'}
             </span>
           </div>
           {!relay.connected && (
