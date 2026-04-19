@@ -141,14 +141,20 @@ function Character3D({ agent, targetGx, targetGy, containerSize, activity, onCli
 // ══════════════════════════════════════════
 // Camera setup for orthographic projection
 // ══════════════════════════════════════════
-function CameraSetup() {
+function CameraSetup({ aspect }: { aspect: number }) {
   const { camera } = useThree();
   useEffect(() => {
     if (camera instanceof THREE.OrthographicCamera) {
+      const frustumH = 10;
+      camera.left = -frustumH * aspect / 2;
+      camera.right = frustumH * aspect / 2;
+      camera.top = frustumH / 2;
+      camera.bottom = -frustumH / 2;
       camera.position.set(0, 0, 10);
       camera.lookAt(0, 0, 0);
+      camera.updateProjectionMatrix();
     }
-  }, [camera]);
+  }, [camera, aspect]);
   return null;
 }
 
@@ -221,7 +227,7 @@ export function Character3DOverlay({ agents, activities, isLive, onAgentClick }:
         style={{ pointerEvents: 'auto' }}
         gl={{ alpha: true, antialias: true }}
       >
-        <CameraSetup />
+        <CameraSetup aspect={aspect} />
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 8, 5]} intensity={0.8} castShadow />
         <directionalLight position={[-3, 4, -2]} intensity={0.3} color="#8888ff" />

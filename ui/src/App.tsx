@@ -170,9 +170,9 @@ export default function App() {
   const activeCount = company.agents.filter(a => a.active).length;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: theme.bg, color: theme.text }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ background: theme.bg, color: theme.text }}>
       {/* Header */}
-      <header className="border-b px-6 py-3 flex items-center justify-between"
+      <header className="border-b px-6 py-2 flex items-center justify-between shrink-0"
         style={{ borderColor: theme.border, background: theme.surface }}>
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
@@ -233,7 +233,7 @@ export default function App() {
       </header>
 
       {/* Navigation */}
-      <nav className="flex gap-1 px-6 py-1.5 border-b" style={{ borderColor: theme.border, background: theme.surface }}>
+      <nav className="flex gap-1 px-6 py-1 border-b shrink-0" style={{ borderColor: theme.border, background: theme.surface }}>
         {NAV_ITEMS.map(item => (
           <button key={item.id}
             onClick={() => setView(item.id)}
@@ -256,10 +256,10 @@ export default function App() {
       </nav>
 
       {/* Main */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         <main className={`flex-1 overflow-auto ${executing ? 'pb-32' : ''}`}>
           {view === 'office' && (
-            <div style={{ height: 'calc(100vh - 100px)' }}>
+            <div className="h-full">
               <OfficeFloor
                 agents={company.agents}
                 onSelect={setSelectedAgent}
