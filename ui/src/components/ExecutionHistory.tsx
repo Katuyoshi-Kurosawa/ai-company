@@ -429,9 +429,9 @@ export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props
   }, [records, filter]);
 
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex gap-4 h-full max-w-6xl mx-auto">
       {/* List */}
-      <div className="w-96 shrink-0 rounded-xl flex flex-col"
+      <div className="w-80 shrink-0 rounded-xl flex flex-col"
         style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
         {/* Header */}
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: theme.border }}>
@@ -488,7 +488,7 @@ export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props
       </div>
 
       {/* Detail */}
-      <div className="flex-1 rounded-xl overflow-hidden"
+      <div className="flex-1 max-w-2xl rounded-xl overflow-hidden"
         style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
         {selected ? (
           <DetailPanel
