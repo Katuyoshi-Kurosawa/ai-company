@@ -420,13 +420,26 @@ function DetailPanel({ record, onDelete, onPreview, theme }: {
 export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'done' | 'error'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'done' | 'error'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'company' | 'mtg' | 'escalation'>('all');
+  const [search, setSearch] = useState('');
   const selected = records.find(r => r.id === selectedId);
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return records;
-    return records.filter(r => r.status === filter);
-  }, [records, filter]);
+    return records.filter(r => {
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (typeFilter !== 'all' && r.type !== typeFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const matchLabel = r.label.toLowerCase().includes(q);
+        const matchArgs = Object.values(r.args).some(v => String(v).toLowerCase().includes(q));
+        const matchFiles = r.files.some(f => f.toLowerCase().includes(q));
+        const matchActions = r.actions.some(a => a.label.toLowerCase().includes(q));
+        if (!matchLabel && !matchArgs && !matchFiles && !matchActions) return false;
+      }
+      return true;
+    });
+  }, [records, statusFilter, typeFilter, search]);
 
   return (
     <div className="flex gap-4 h-full max-w-6xl mx-auto">
@@ -437,7 +450,9 @@ export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: theme.border }}>
           <h3 className="font-bold text-sm">実行履歴</h3>
           <div className="flex items-center gap-2">
-            <span className="text-[10px]" style={{ color: theme.muted }}>{records.length}件</span>
+            <span className="text-[10px]" style={{ color: theme.muted }}>
+              {filtered.length !== records.length ? `${filtered.length}/${records.length}件` : `${records.length}件`}
+            </span>
             {records.length > 0 && (
               <button onClick={onClearAll}
                 className="text-[10px] px-2 py-0.5 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 cursor-pointer transition-colors">
@@ -450,21 +465,57 @@ export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props
         {/* Stats */}
         <OverallStats records={records} theme={theme} />
 
-        {/* Filters */}
+        {/* Search & Filters */}
         {records.length > 0 && (
-          <div className="flex gap-1 px-4 py-2 border-b" style={{ borderColor: theme.border }}>
-            {[
-              { id: 'all' as const, label: 'すべて' },
-              { id: 'done' as const, label: '✅ 成功' },
-              { id: 'error' as const, label: '❌ エラー' },
-            ].map(f => (
-              <button key={f.id}
-                onClick={() => setFilter(f.id)}
-                className={`px-2 py-1 rounded text-[10px] cursor-pointer transition-colors
-                  ${filter === f.id ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
-                {f.label}
-              </button>
-            ))}
+          <div className="px-3 py-2 border-b space-y-1.5" style={{ borderColor: theme.border }}>
+            {/* Search */}
+            <div className="relative">
+              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/30 text-xs">🔍</span>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="キーワード検索..."
+                className="w-full pl-7 pr-7 py-1.5 rounded-lg bg-white/5 text-xs text-white placeholder:text-white/30 outline-none focus:ring-1 focus:ring-indigo-400/50"
+              />
+              {search && (
+                <button onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 text-xs cursor-pointer">
+                  ✕
+                </button>
+              )}
+            </div>
+            {/* Status filter */}
+            <div className="flex gap-1">
+              {[
+                { id: 'all' as const, label: 'すべて' },
+                { id: 'done' as const, label: '✅ 成功' },
+                { id: 'error' as const, label: '❌ エラー' },
+              ].map(f => (
+                <button key={f.id}
+                  onClick={() => setStatusFilter(f.id)}
+                  className={`px-2 py-1 rounded text-[10px] cursor-pointer transition-colors
+                    ${statusFilter === f.id ? 'bg-indigo-500/20 text-indigo-300' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {/* Type filter */}
+            <div className="flex gap-1">
+              {[
+                { id: 'all' as const, label: '全種別' },
+                { id: 'company' as const, label: '🏢 全工程' },
+                { id: 'mtg' as const, label: '💬 MTG' },
+                { id: 'escalation' as const, label: '📨 相談' },
+              ].map(f => (
+                <button key={f.id}
+                  onClick={() => setTypeFilter(f.id)}
+                  className={`px-2 py-1 rounded text-[10px] cursor-pointer transition-colors
+                    ${typeFilter === f.id ? 'bg-amber-500/20 text-amber-300' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
