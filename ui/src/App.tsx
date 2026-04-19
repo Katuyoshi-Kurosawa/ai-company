@@ -48,7 +48,8 @@ export default function App() {
   const currentExecutionArgsRef = useRef<Record<string, string | number | string[]>>({});
   const prevStatus = useRef(relay.status);
   const isRunning = relay.status === 'running' || relay.status === 'connecting';
-  const officeActivity = useOfficeActivity(relay.lines, executing);
+  const isLive = isRunning; // オフィスLIVE表示は実際の実行状態に連動（executingはパネル表示用）
+  const officeActivity = useOfficeActivity(relay.lines, isLive);
   const outputDir = useMemo(() => parseLogLines(relay.lines).outputDir, [relay.lines]);
 
   // relay再接続検出: ページリロード後に実行中ジョブがあれば復元
@@ -252,7 +253,7 @@ export default function App() {
                 agents={company.agents}
                 onSelect={setSelectedAgent}
                 selectedId={selectedAgent?.id}
-                isLive={executing}
+                isLive={isLive}
                 activities={officeActivity.activities}
                 activeRooms={officeActivity.activeRooms}
                 energyLevel={officeActivity.energyLevel}
