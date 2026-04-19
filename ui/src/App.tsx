@@ -4,7 +4,7 @@ import { THEMES } from './data/constants';
 import { useCompanyStore, calcTeamPower, getTeamRank } from './hooks/useCompanyStore';
 import { useRelay } from './hooks/useRelay';
 import { useExecutionHistory, parseLogLines } from './hooks/useExecutionHistory';
-import { recordExecution, updateExecutionResult } from './lib/routeRecommender';
+import { recordExecution, updateExecutionResult, recordSkillExperience } from './lib/routeRecommender';
 import type { RouteType } from './lib/routeRecommender';
 import { OfficeFloor } from './components/OfficeFloor';
 import { useOfficeActivity } from './hooks/useOfficeActivity';
@@ -45,6 +45,7 @@ export default function App() {
   const [executionLabel, setExecutionLabel] = useState('');
   const currentRecordId = useRef<string | null>(null);
   const currentRouteStatId = useRef<string | null>(null);
+  const currentExecutionArgsRef = useRef<Record<string, string | number | string[]>>({});
   const prevStatus = useRef(relay.status);
   const isRunning = relay.status === 'running' || relay.status === 'connecting';
   const officeActivity = useOfficeActivity(relay.lines, executing);
@@ -94,6 +95,25 @@ export default function App() {
         );
         currentRouteStatId.current = null;
       }
+      // 育成ルートのスキル経験記録 + EXP付与
+      const execArgs = currentExecutionArgsRef.current;
+      if (String(execArgs.routeType) === 'training' && relay.status === 'done') {
+        const agentsList = String(execArgs.agents || '').split(',').filter(Boolean);
+        for (const agentId of agentsList) {
+          recordSkillExperience({
+            agentId,
+            skillId: 'general', // 汎用スキル
+            routeType: 'training',
+            result: 'success',
+            createdAt: new Date().toISOString(),
+          });
+        }
+        // EXP付与（育成ルート完了ボーナス）
+        for (const agentId of agentsList) {
+          store.addExp(agentId, 20);
+        }
+      }
+      currentExecutionArgsRef.current = {};
       currentRecordId.current = null;
     }
     prevStatus.current = relay.status;
@@ -276,6 +296,7 @@ export default function App() {
                   setExecutionLabel(label);
                   setExecuting(true);
                   currentRecordId.current = execHistory.startRecord(type, label, args);
+                  currentExecutionArgsRef.current = args;
                   // ルート実績記録開始
                   if (args.routeType) {
                     const statId = `stat-${Date.now()}`;

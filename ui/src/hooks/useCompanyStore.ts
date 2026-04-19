@@ -123,6 +123,50 @@ export function useCompanyStore() {
     );
   }, [activeCompanyId, updateCompanies]);
 
+  const addBadge = useCallback((agentId: string, badgeId: string) => {
+    updateCompanies(prev =>
+      prev.map(c => {
+        if (c.id !== activeCompanyId) return c;
+        return {
+          ...c,
+          agents: c.agents.map(a => {
+            if (a.id !== agentId) return a;
+            if (a.badges.includes(badgeId)) return a; // 既に所持
+            return { ...a, badges: [...a.badges, badgeId] };
+          }),
+        };
+      })
+    );
+  }, [activeCompanyId, updateCompanies]);
+
+  const addExp = useCallback((agentId: string, amount: number) => {
+    updateCompanies(prev =>
+      prev.map(c => {
+        if (c.id !== activeCompanyId) return c;
+        return {
+          ...c,
+          agents: c.agents.map(a => {
+            if (a.id !== agentId) return a;
+            const newExp = a.exp + amount;
+            // レベルアップ判定
+            const LEVEL_THRESHOLDS = [0, 100, 300, 700, 1500, 3000];
+            const RANKS = ['一般社員', '主任', '係長', '課長', '部長', '役員'];
+            let newLevel = a.level;
+            let newRank = a.rank;
+            for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
+              if (newExp >= LEVEL_THRESHOLDS[i]) {
+                newLevel = i + 1;
+                newRank = RANKS[i];
+                break;
+              }
+            }
+            return { ...a, exp: newExp, level: newLevel, rank: newRank };
+          }),
+        };
+      })
+    );
+  }, [activeCompanyId, updateCompanies]);
+
   const addNotification = useCallback((n: Omit<Notification, 'id' | 'timestamp'>) => {
     const notif: Notification = { ...n, id: crypto.randomUUID(), timestamp: Date.now() };
     setNotifications(prev => {
@@ -170,6 +214,8 @@ export function useCompanyStore() {
     setActiveCompanyId,
     updateAgent,
     updateCompanies,
+    addBadge,
+    addExp,
     addNotification,
     notifications,
     setTheme,

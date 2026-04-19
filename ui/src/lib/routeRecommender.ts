@@ -178,7 +178,7 @@ function findTrainees(agents: Agent[], relevantSkills: string[]): { agentId: str
     for (const skill of relevantSkills) {
       // そのスキルを持っていないエージェントが候補
       if (!agentSkills.includes(skill)) {
-        trainees.push({ agentId: agent.id, skill, experience: 0 });
+        trainees.push({ agentId: agent.id, skill, experience: getSkillExperienceCount(agent.id, skill) });
       }
     }
   }
@@ -347,4 +347,93 @@ export function formatTime(sec: number): string {
 
 export function getRouteHistory(): ExecutionStat[] {
   return loadStats();
+}
+
+// ── プリセット管理 ──────────────────────────────────────────
+
+export interface RoutePreset {
+  id: string;
+  name: string;
+  icon: string;
+  agents: string[];
+  depth: 'lightweight' | 'medium' | 'heavy';
+  model: 'haiku' | 'sonnet' | 'opus';
+  maxTurns: number;
+  createdAt: string;
+}
+
+const PRESET_STORAGE_KEY = 'ai-company-route-presets';
+
+/** 保存済みプリセット一覧を取得（最大20件） */
+export function loadPresets(): RoutePreset[] {
+  try {
+    const raw = localStorage.getItem(PRESET_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+/** プリセットを保存（同名なら上書き、最大20件） */
+export function savePreset(preset: RoutePreset) {
+  const presets = loadPresets();
+  // 同名なら上書き
+  const idx = presets.findIndex(p => p.name === preset.name);
+  if (idx >= 0) {
+    presets[idx] = preset;
+  } else {
+    presets.unshift(preset);
+  }
+  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets.slice(0, 20)));
+}
+
+/** プリセットをIDで削除 */
+export function deletePreset(id: string) {
+  const presets = loadPresets().filter(p => p.id !== id);
+  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
+}
+
+// ── スキル経験記録 ──────────────────────────────────────────
+
+export interface SkillExperience {
+  agentId: string;
+  skillId: string;
+  routeType: RouteType;
+  result: 'success' | 'partial' | 'fail';
+  createdAt: string;
+}
+
+const SKILL_EXP_KEY = 'ai-company-skill-experience';
+
+function loadSkillExperience(): SkillExperience[] {
+  try {
+    const raw = localStorage.getItem(SKILL_EXP_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveSkillExperience(records: SkillExperience[]) {
+  localStorage.setItem(SKILL_EXP_KEY, JSON.stringify(records.slice(0, 500)));
+}
+
+/** スキル経験を1件記録する（最大500件保持） */
+export function recordSkillExperience(exp: SkillExperience) {
+  const records = loadSkillExperience();
+  records.unshift(exp);
+  saveSkillExperience(records);
+}
+
+/** エージェントのスキル別経験サマリーを取得 */
+export function getAgentSkillExperience(agentId: string): Record<string, { attempts: number; successes: number }> {
+  const records = loadSkillExperience().filter(r => r.agentId === agentId);
+  const result: Record<string, { attempts: number; successes: number }> = {};
+  for (const r of records) {
+    if (!result[r.skillId]) result[r.skillId] = { attempts: 0, successes: 0 };
+    result[r.skillId].attempts++;
+    if (r.result === 'success') result[r.skillId].successes++;
+  }
+  return result;
+}
+
+/** エージェントの特定スキルの経験回数を取得 */
+export function getSkillExperienceCount(agentId: string, skillId: string): number {
+  return loadSkillExperience().filter(r => r.agentId === agentId && r.skillId === skillId).length;
 }

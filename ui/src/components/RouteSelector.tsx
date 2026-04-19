@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Agent } from '../types';
-import type { RouteOption } from '../lib/routeRecommender';
-import { formatTime } from '../lib/routeRecommender';
+import type { RouteOption, RoutePreset } from '../lib/routeRecommender';
+import { formatTime, loadPresets, savePreset, deletePreset } from '../lib/routeRecommender';
 import { PixelCharacter } from './PixelCharacter';
 
 interface Props {
@@ -10,6 +10,7 @@ interface Props {
   theme: { bg: string; surface: string; border: string; text: string; muted: string };
   onSelect: (route: RouteOption) => void;
   onAdjust: (route: RouteOption) => void;
+  onSelectPreset?: (preset: RoutePreset) => void;
 }
 
 export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Props) {
@@ -45,7 +46,15 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
       2: { depth: 'heavy', model: 'opus', maxTurns: 30 },
     };
     const d = depthMap[adj.depth] ?? depthMap[1];
-    return { ...route, agents: adj.agents, ...d };
+    // 推定時間をエージェント数と深さで再計算
+    const depthMultiplier = [0.3, 1, 2.5][adj.depth] ?? 1;
+    const agentRatio = adj.agents.length / Math.max(route.agents.length, 1);
+    const newEstimate = Math.round(route.estimatedSec * agentRatio * depthMultiplier);
+    // コスト再計算
+    const costMap = ['$0.02', '$0.15', '$0.80'];
+    const baseCost = parseFloat(costMap[adj.depth]?.replace('$', '') ?? '0.15');
+    const newCost = '$' + (baseCost * agentRatio).toFixed(2);
+    return { ...route, agents: adj.agents, ...d, estimatedSec: newEstimate, costEstimate: newCost };
   };
 
   const DEPTH_LABELS = ['⚡ 浅い（速い）', '🔧 標準', '🏗️ 深い（丁寧）'];
@@ -61,7 +70,12 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
           <div key={route.type}
             className={`rounded-xl p-4 transition-all duration-200 hover:scale-[1.005]
               ${route.recommended ? 'ring-2 ring-indigo-400/50' : ''}`}
-            style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
+            style={{
+              background: route.recommended
+                ? `linear-gradient(135deg, ${theme.surface}, ${theme.surface}ee, rgba(99,102,241,0.08))`
+                : theme.surface,
+              border: `1px solid ${route.recommended ? 'rgba(99,102,241,0.3)' : theme.border}`,
+            }}>
 
             {/* Main row */}
             <div className="flex items-start gap-4">
@@ -201,6 +215,43 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
                     />
                     <span className="text-xs w-32 text-right">{DEPTH_LABELS[adj?.depth ?? 1]}</span>
                   </div>
+                  {/* 微調整前後の推定時間差 */}
+                  {adj && (
+                    <div className="text-xs mt-1" style={{ color: theme.muted }}>
+                      推定時間: ~{formatTime(route.estimatedSec)} → <span className="font-bold" style={{ color: theme.text }}>~{formatTime(getAdjustedRoute(route).estimatedSec)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Preset save form */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="プリセット名..."
+                    className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs"
+                    id={`preset-name-${route.type}`}
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById(`preset-name-${route.type}`) as HTMLInputElement;
+                      const name = input?.value?.trim();
+                      if (!name) return;
+                      const adj = adjustments[route.type];
+                      savePreset({
+                        id: `preset-${Date.now()}`,
+                        name,
+                        icon: route.icon,
+                        agents: adj?.agents ?? route.agents,
+                        depth: (['lightweight', 'medium', 'heavy'] as const)[adj?.depth ?? 1],
+                        model: (['haiku', 'sonnet', 'opus'] as const)[adj?.depth ?? 1],
+                        maxTurns: [5, 15, 30][adj?.depth ?? 1],
+                        createdAt: new Date().toISOString(),
+                      });
+                      input.value = '';
+                    }}
+                    className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-[10px] cursor-pointer transition-colors">
+                    💾 保存
+                  </button>
                 </div>
 
                 {/* Apply button */}
@@ -214,6 +265,53 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
           </div>
         );
       })}
+
+      {/* Presets section */}
+      {(() => {
+        const presets = loadPresets();
+        if (presets.length === 0) return null;
+        return (
+          <div className="mt-4 pt-4 border-t" style={{ borderColor: theme.border }}>
+            <div className="text-[10px] font-bold opacity-40 uppercase tracking-wider mb-2">保存済みプリセット</div>
+            <div className="space-y-1">
+              {presets.map(p => (
+                <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all">
+                  <span className="text-lg">{p.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold truncate">{p.name}</div>
+                    <div className="text-[10px]" style={{ color: theme.muted }}>
+                      {p.agents.length}名 · {p.depth} · {p.model}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onSelect({
+                      type: 'team',
+                      label: p.name,
+                      icon: p.icon,
+                      description: `プリセット: ${p.name}`,
+                      agents: p.agents,
+                      depth: p.depth,
+                      model: p.model,
+                      maxTurns: p.maxTurns,
+                      estimatedSec: 300,
+                      costEstimate: '$0.15',
+                      recommended: false,
+                      stats: { runCount: 0, avgSec: null, successRate: null },
+                    })}
+                    className="px-2 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-[10px] font-bold cursor-pointer transition-colors">
+                    ▶
+                  </button>
+                  <button
+                    onClick={() => { deletePreset(p.id); }}
+                    className="px-1.5 py-1 bg-white/5 hover:bg-red-500/20 rounded text-[10px] cursor-pointer transition-colors">
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
