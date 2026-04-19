@@ -435,7 +435,7 @@ export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props
         style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
         {/* Header */}
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: theme.border }}>
-          <h3 className="font-bold text-sm">指示履歴</h3>
+          <h3 className="font-bold text-sm">実行履歴</h3>
           <div className="flex items-center gap-2">
             <span className="text-[10px]" style={{ color: theme.muted }}>{records.length}件</span>
             {records.length > 0 && (
