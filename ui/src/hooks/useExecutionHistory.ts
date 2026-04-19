@@ -13,7 +13,7 @@ export interface ExecutionRecord {
   id: string;
   type: 'company' | 'mtg' | 'escalation';
   label: string;
-  args: Record<string, string | number>;
+  args: Record<string, string | number | string[]>;
   status: 'running' | 'done' | 'error';
   startedAt: string;   // ISO string
   finishedAt?: string;
@@ -114,7 +114,7 @@ export function parseLogLines(lines: { text: string; time: number }[]): {
 export function useExecutionHistory() {
   const [records, setRecords] = useState<ExecutionRecord[]>(load);
 
-  const startRecord = useCallback((type: 'company' | 'mtg' | 'escalation', label: string, args: Record<string, string | number>): string => {
+  const startRecord = useCallback((type: 'company' | 'mtg' | 'escalation', label: string, args: Record<string, string | number | string[]>): string => {
     const id = `exec-${Date.now()}`;
     const record: ExecutionRecord = {
       id, type, label, args,

@@ -4,6 +4,8 @@ import { THEMES } from './data/constants';
 import { useCompanyStore, calcTeamPower, getTeamRank } from './hooks/useCompanyStore';
 import { useRelay } from './hooks/useRelay';
 import { useExecutionHistory, parseLogLines } from './hooks/useExecutionHistory';
+import { recordExecution, updateExecutionResult } from './lib/routeRecommender';
+import type { RouteType } from './lib/routeRecommender';
 import { OfficeFloor } from './components/OfficeFloor';
 import { useOfficeActivity } from './hooks/useOfficeActivity';
 import { OrgTree } from './components/OrgTree';
@@ -42,6 +44,7 @@ export default function App() {
   const [executing, setExecuting] = useState(false);
   const [executionLabel, setExecutionLabel] = useState('');
   const currentRecordId = useRef<string | null>(null);
+  const currentRouteStatId = useRef<string | null>(null);
   const prevStatus = useRef(relay.status);
   const isRunning = relay.status === 'running' || relay.status === 'connecting';
   const officeActivity = useOfficeActivity(relay.lines, executing);
@@ -79,6 +82,15 @@ export default function App() {
         relay.lines,
         relay.error ?? undefined,
       );
+      // ルート実績を更新
+      if (currentRouteStatId.current) {
+        updateExecutionResult(
+          currentRouteStatId.current,
+          relay.elapsed,
+          relay.status as 'done' | 'error',
+        );
+        currentRouteStatId.current = null;
+      }
       currentRecordId.current = null;
     }
     prevStatus.current = relay.status;
@@ -261,6 +273,24 @@ export default function App() {
                   setExecutionLabel(label);
                   setExecuting(true);
                   currentRecordId.current = execHistory.startRecord(type, label, args);
+                  // ルート実績記録開始
+                  if (args.routeType) {
+                    const statId = `stat-${Date.now()}`;
+                    recordExecution({
+                      id: statId,
+                      instruction: String(args.theme || ''),
+                      routeType: String(args.routeType) as RouteType,
+                      agents: String(args.agents || '').split(','),
+                      depth: String(args.depth || 'medium'),
+                      model: String(args.model || 'sonnet'),
+                      maxTurns: Number(args.maxTurns) || 15,
+                      estimatedSec: 0,
+                      actualSec: null,
+                      status: 'done',
+                      createdAt: new Date().toISOString(),
+                    });
+                    currentRouteStatId.current = statId;
+                  }
                 }}
                 history={execHistory.records}
                 onDeleteHistory={execHistory.deleteRecord}

@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Agent } from '../types';
 import type { RelayState } from '../hooks/useRelay';
 import type { ExecutionRecord } from '../hooks/useExecutionHistory';
 import { PixelCharacter } from './PixelCharacter';
 import { ExecutionHistory } from './ExecutionHistory';
+import { RouteSelector } from './RouteSelector';
+import { recommendRoutes } from '../lib/routeRecommender';
+import type { RouteOption } from '../lib/routeRecommender';
 
 interface Props {
   agents: Agent[];
@@ -13,7 +16,7 @@ interface Props {
     reset: () => void;
     checkConnection: () => Promise<boolean>;
   };
-  onExecute: (label: string, type: 'company' | 'mtg', args: Record<string, string | number>) => void;
+  onExecute: (label: string, type: 'company' | 'mtg', args: Record<string, string | number | string[]>) => void;
   history: ExecutionRecord[];
   onDeleteHistory: (id: string) => void;
   onClearHistory: () => void;
@@ -40,11 +43,33 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
   const [mtgRounds, setMtgRounds] = useState(3);
   const [mtgConflict, setMtgConflict] = useState('chair');
 
-  const handleCompanyStart = () => {
+  // ルート推薦用の状態
+  const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null);
+
+  // テーマ入力に応じてルートを再計算
+  const routes = useMemo(() => {
+    if (!companyTheme.trim()) return [];
+    return recommendRoutes(companyTheme, agents);
+  }, [companyTheme, agents]);
+
+  // ルート選択時の実行ハンドラ
+  const handleRouteSelect = (route: RouteOption) => {
     if (!companyTheme.trim()) return;
-    const args = { theme: companyTheme };
+    const args = {
+      theme: companyTheme,
+      routeType: route.type,
+      depth: route.depth,
+      agents: route.agents.join(','),
+      model: route.model,
+      maxTurns: route.maxTurns,
+    };
     relay.execute('company', args);
-    onExecute(`全工程実行: ${companyTheme}`, 'company', args);
+    onExecute(`${route.icon} ${route.label}: ${companyTheme}`, 'company', args);
+  };
+
+  // ルート調整時のハンドラ（調整パネルから確定された場合）
+  const handleRouteAdjust = (route: RouteOption) => {
+    setSelectedRoute(route);
   };
 
   const handleMtgStart = () => {
@@ -54,6 +79,16 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     const label = MTG_TYPES.find(t => t.id === mtgType)?.label ?? mtgType;
     onExecute(`${label}: ${mtgAgenda}`, 'mtg', args);
   };
+
+  // サイドバーに表示するチームメンバーを決定
+  // ルートが選択されていればそのメンバー、未選択なら全員表示
+  const teamMembers = useMemo(() => {
+    if (mode !== 'company') return agents;
+    if (selectedRoute) {
+      return agents.filter(a => selectedRoute.agents.includes(a.id));
+    }
+    return agents;
+  }, [mode, selectedRoute, agents]);
 
   return (
     <div className="flex gap-6 h-full">
@@ -100,7 +135,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
             { id: 'history' as const, icon: '📋', label: `実行履歴 (${history.length})`, desc: '過去の実行結果を閲覧' },
           ].map(m => (
             <button key={m.id}
-              onClick={() => setMode(m.id)}
+              onClick={() => { setMode(m.id); setSelectedRoute(null); }}
               className={`w-full text-left p-3 rounded-lg cursor-pointer transition-all
                 ${mode === m.id ? 'bg-indigo-500/15 ring-1 ring-indigo-400/40' : 'bg-white/5 hover:bg-white/10'}`}>
               <div className="flex items-center gap-2">
@@ -118,9 +153,11 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
         {mode !== 'history' && (
           <div className="rounded-xl p-4"
             style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
-            <h3 className="text-xs font-bold opacity-40 uppercase tracking-wider mb-3">実行チーム</h3>
+            <h3 className="text-xs font-bold opacity-40 uppercase tracking-wider mb-3">
+              {selectedRoute ? `${selectedRoute.icon} ${selectedRoute.label}チーム` : '実行チーム'}
+            </h3>
             <div className="grid grid-cols-5 gap-2">
-              {agents.slice(0, 15).map(a => (
+              {teamMembers.slice(0, 15).map(a => (
                 <div key={a.id} className="flex flex-col items-center">
                   <PixelCharacter visual={a.visual} size="sm" active={a.active} />
                   <span className="text-[8px] mt-0.5 truncate w-full text-center" style={{ color: theme.muted }}>
@@ -129,6 +166,11 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
                 </div>
               ))}
             </div>
+            {selectedRoute && (
+              <p className="text-[10px] mt-2" style={{ color: theme.muted }}>
+                {selectedRoute.agents.length}名参加 / {selectedRoute.depth} / {selectedRoute.model}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -152,7 +194,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
               <div>
                 <h2 className="text-xl font-bold mb-1">全工程実行</h2>
                 <p className="text-sm" style={{ color: theme.muted }}>
-                  テーマを入力すると、全エージェントが協力して開発を進めます
+                  テーマを入力すると、実行ルートが表示されます
                 </p>
               </div>
 
@@ -160,38 +202,39 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
                 <label className="text-sm font-bold block mb-2">テーマ / 指示</label>
                 <textarea
                   value={companyTheme}
-                  onChange={e => setCompanyTheme(e.target.value)}
+                  onChange={e => { setCompanyTheme(e.target.value); setSelectedRoute(null); }}
                   placeholder="例: 顧客ランク別割引機能を追加したい"
                   className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base h-32 resize-none focus:ring-2 focus:ring-indigo-500/50 focus:outline-none transition-all"
                 />
               </div>
 
-              <div className="p-4 bg-white/5 rounded-lg">
-                <h4 className="text-xs font-bold opacity-40 mb-2">実行フロー</h4>
-                <div className="flex items-center gap-2 text-xs flex-wrap" style={{ color: theme.muted }}>
-                  {['秘書整理', '企画', '設計', 'UI設計', '開発', 'QA', 'MTG', '資料', '広報', 'CEO確認'].map((step, i) => (
-                    <span key={step} className="flex items-center gap-1">
-                      {i > 0 && <span className="text-white/20">→</span>}
-                      <span className="bg-white/10 px-2 py-0.5 rounded">{step}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
+              {/* リレー未接続の警告 */}
               {!relay.connected && (
                 <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-400 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
                   リレー未接続。ターミナルで <code className="bg-black/30 px-1.5 py-0.5 rounded font-mono text-xs">node relay.js</code> を起動してください
                 </div>
               )}
-              <button
-                onClick={handleCompanyStart}
-                disabled={!companyTheme.trim() || !relay.connected}
-                className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-bold text-lg
-                  hover:from-indigo-600 hover:to-purple-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer
-                  transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40">
-                🚀 実行開始
-              </button>
+
+              {/* テーマ未入力時のプレースホルダー */}
+              {!companyTheme.trim() && (
+                <div className="p-8 text-center rounded-lg bg-white/5">
+                  <p className="text-sm" style={{ color: theme.muted }}>
+                    テーマを入力すると実行ルートが表示されます
+                  </p>
+                </div>
+              )}
+
+              {/* テーマ入力済みならRouteSelector表示 */}
+              {companyTheme.trim() && routes.length > 0 && (
+                <RouteSelector
+                  agents={agents}
+                  routes={routes}
+                  theme={theme}
+                  onSelect={handleRouteSelect}
+                  onAdjust={handleRouteAdjust}
+                />
+              )}
             </div>
           )}
 

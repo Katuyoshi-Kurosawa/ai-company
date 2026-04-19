@@ -78,6 +78,7 @@ const server = http.createServer(async (req, res) => {
         status: active.status,
         startedAt: active.startedAt,
         lineCount: active.lines.length,
+        routeType: active.routeType || null,
       });
     }
     return json(res, 200, null);
@@ -135,6 +136,12 @@ const server = http.createServer(async (req, res) => {
       case 'company':
         cmd = './ai-company.sh';
         cmdArgs = [args.theme || ''];
+        // 拡張パラメータがあれば環境変数で渡す
+        if (args.depth) cmdArgs.push('--depth', args.depth);
+        if (args.agents) cmdArgs.push('--agents', args.agents);
+        if (args.model) cmdArgs.push('--model', args.model);
+        if (args.maxTurns) cmdArgs.push('--max-turns', String(args.maxTurns));
+        if (args.routeType) cmdArgs.push('--route', args.routeType);
         break;
       case 'mtg':
         cmd = './ai-mtg.sh';
@@ -153,6 +160,7 @@ const server = http.createServer(async (req, res) => {
     const job = {
       id, type, label, status: 'running', startedAt: Date.now(),
       lines: [], listeners: new Set(),
+      routeType: args.routeType || null,
     };
     jobs.set(id, job);
 

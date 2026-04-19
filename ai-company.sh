@@ -9,6 +9,26 @@ set -euo pipefail
 # ============================================================
 
 THEME="${1:?テーマを指定してください。例: ./ai-company.sh \"顧客ランク別割引機能を追加したい\"}"
+
+# ── 追加引数パース ─────────────────────────────────────────
+OVERRIDE_DEPTH=""
+OVERRIDE_AGENTS=""
+OVERRIDE_MODEL=""
+OVERRIDE_MAX_TURNS=""
+ROUTE_TYPE=""
+
+shift  # $1 (THEME) をスキップ
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --depth) OVERRIDE_DEPTH="$2"; shift 2 ;;
+    --agents) OVERRIDE_AGENTS="$2"; shift 2 ;;
+    --model) OVERRIDE_MODEL="$2"; shift 2 ;;
+    --max-turns) OVERRIDE_MAX_TURNS="$2"; shift 2 ;;
+    --route) ROUTE_TYPE="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 PROJECT_DIR="./output/${TIMESTAMP}"
 CONFIG="./company-config.json"
@@ -111,8 +131,8 @@ run_agent() {
   local prompt="$2"
   local model="${3:-}"
   local max_turns="${4:-}"
-  [ -z "$model" ] && model=$(get_agent_field "$agent_id" ".model")
-  [ -z "$max_turns" ] && max_turns=$(get_agent_field "$agent_id" ".maxTurns")
+  [ -z "$model" ] && model="${OVERRIDE_MODEL:-$(get_agent_field "$agent_id" ".model")}"
+  [ -z "$max_turns" ] && max_turns="${OVERRIDE_MAX_TURNS:-$(get_agent_field "$agent_id" ".maxTurns")}"
   local system_prompt_file="${AGENTS_DIR}/${agent_id}.md"
 
   if [ ! -f "$system_prompt_file" ]; then
@@ -203,6 +223,12 @@ classify_theme() {
 }
 
 THEME_WEIGHT=$(classify_theme)
+
+# depth オーバーライド
+if [ -n "$OVERRIDE_DEPTH" ]; then
+  log "📊 実行深度オーバーライド: $THEME_WEIGHT → $OVERRIDE_DEPTH (route: ${ROUTE_TYPE:-manual})"
+  THEME_WEIGHT="$OVERRIDE_DEPTH"
+fi
 
 # ══════════════════════════════════════════════════════════════
 # lightweight モード: 秘書のみ（haiku）
