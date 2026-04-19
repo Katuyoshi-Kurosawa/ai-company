@@ -30,6 +30,7 @@ interface Props {
   commandLabel?: string;
   elapsed?: number;
   onShowDetail?: (agent: Agent) => void;
+  missionTimeline?: React.ReactNode;
 }
 
 // ══════════════════════════════════════════
@@ -455,7 +456,7 @@ function BottomDock({ agents, selectedId, onSelect, activities }: {
 export function OfficeFloor({
   agents, onSelect, selectedId, isLive, activities, activeRooms,
   energyLevel, livePhase, liveProgress, liveAgentCount, onAgentClick,
-  executing, questItems, commandLabel, elapsed, onShowDetail,
+  executing, questItems, commandLabel, elapsed, onShowDetail, missionTimeline,
 }: Props) {
   const [bubbleAgentId, setBubbleAgentId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -740,16 +741,18 @@ export function OfficeFloor({
 
       {/* ══ HUD Overlays ══ */}
 
-      {/* Top: Phase Bar (only during execution) */}
+      {/* Top: Mission Timeline or Phase Bar (only during execution) */}
       {executing && isLive && (
-        <PhaseBar
-          phase={livePhase ?? '待機中'}
-          progress={liveProgress ?? 0}
-          energy={energyLevel ?? 0}
-          agentCount={liveAgentCount ?? 0}
-          commandLabel={commandLabel}
-          elapsed={elapsed}
-        />
+        missionTimeline || (
+          <PhaseBar
+            phase={livePhase ?? '待機中'}
+            progress={liveProgress ?? 0}
+            energy={energyLevel ?? 0}
+            agentCount={liveAgentCount ?? 0}
+            commandLabel={commandLabel}
+            elapsed={elapsed}
+          />
+        )
       )}
 
       {/* Bottom-left: Minimap + Zoom controls */}

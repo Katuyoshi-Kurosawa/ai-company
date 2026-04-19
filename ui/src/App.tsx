@@ -8,6 +8,8 @@ import { recordExecution, updateExecutionResult, recordSkillExperience } from '.
 import type { RouteType } from './lib/routeRecommender';
 import { OfficeFloor } from './components/OfficeFloor';
 import { useOfficeActivity } from './hooks/useOfficeActivity';
+import { useMissionProgress } from './hooks/useMissionProgress';
+import { MissionTimeline } from './components/MissionTimeline';
 import { OrgTree } from './components/OrgTree';
 import { ScoreBoard } from './components/ScoreBoard';
 import { AgentCard } from './components/AgentCard';
@@ -51,6 +53,15 @@ export default function App() {
   const isLive = isRunning; // オフィスLIVE表示は実際の実行状態に連動（executingはパネル表示用）
   const officeActivity = useOfficeActivity(relay.lines, isLive);
   const outputDir = useMemo(() => parseLogLines(relay.lines).outputDir, [relay.lines]);
+
+  // ミッション進捗解析
+  const participatingAgentIds = useMemo(() => {
+    const agents = currentExecutionArgsRef.current.agents;
+    if (agents && typeof agents === 'string') return agents.split(',').filter(Boolean);
+    if (Array.isArray(agents)) return agents.filter(Boolean) as string[];
+    return undefined;
+  }, [executing, relay.lines.length]);
+  const mission = useMissionProgress(relay.lines, isLive, participatingAgentIds, undefined);
 
   // relay再接続検出: ページリロード後に実行中ジョブがあれば復元
   // relay.statusとrelay.jobIdを直接依存に入れて確実に反応させる
@@ -266,6 +277,9 @@ export default function App() {
                 elapsed={relay.elapsed}
                 questItems={questItems}
                 onShowDetail={(agent) => { setSelectedAgent(agent); setShowDetail(true); }}
+                missionTimeline={isLive && mission.phases.length > 0 ? (
+                  <MissionTimeline mission={mission} agents={company.agents} elapsed={relay.elapsed} />
+                ) : undefined}
               />
             </div>
           )}
@@ -276,7 +290,8 @@ export default function App() {
                 <ScoreBoard agents={company.agents} onSelect={setSelectedAgent} />
               </aside>
               <div className="flex-1 rounded-xl p-4" style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
-                <OrgTree agents={company.agents} onSelect={setSelectedAgent} selectedId={selectedAgent?.id} />
+                <OrgTree agents={company.agents} onSelect={setSelectedAgent} selectedId={selectedAgent?.id}
+                  mission={isLive ? mission : undefined} elapsed={isLive ? relay.elapsed : undefined} />
               </div>
             </div>
           )}
