@@ -512,7 +512,7 @@ export function OfficeFloor({
     if (!el) return;
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.15 : 0.15;
+      const delta = e.deltaY > 0 ? -0.08 : 0.08;
       setZoom(prev => {
         const next = Math.max(0.5, Math.min(4, prev + delta));
         if (next !== 1) setManualZoom(true);
@@ -756,13 +756,36 @@ export function OfficeFloor({
       {/* Bottom-left: Minimap + Zoom controls */}
       <Minimap activeRooms={activeRooms} isLive={isLive} />
       <div className="absolute bottom-[110px] left-3 z-30 flex flex-col gap-1">
-        <button onClick={() => { setZoom(prev => Math.min(4, prev + 0.3)); setManualZoom(true); }}
+        <button onClick={() => { setZoom(prev => Math.min(4, prev + 0.15)); setManualZoom(true); }}
           className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-white/70 text-sm font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">+</button>
-        <button onClick={() => { setZoom(1); setManualZoom(false); setPanOffset({ x: 0, y: 0 }); setZoomTarget(null); }}
-          className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-[9px] text-white/50 cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center font-mono">
-          {Math.round(zoom * 100)}%
-        </button>
-        <button onClick={() => { setZoom(prev => Math.max(0.5, prev - 0.3)); setManualZoom(true); }}
+
+        {/* Zoom presets */}
+        {[
+          { label: '2x', value: 2.0 },
+          { label: '1.5', value: 1.5 },
+          { label: '1x', value: 1.0 },
+          { label: '.7', value: 0.7 },
+        ].map(p => (
+          <button key={p.label}
+            onClick={() => {
+              setZoom(p.value);
+              if (p.value === 1) { setManualZoom(false); setPanOffset({ x: 0, y: 0 }); setZoomTarget(null); }
+              else setManualZoom(true);
+            }}
+            className={`w-7 h-7 rounded-md backdrop-blur-md border text-[9px] font-bold cursor-pointer transition-colors flex items-center justify-center
+              ${Math.abs(zoom - p.value) < 0.05
+                ? 'bg-indigo-500/30 border-indigo-400/50 text-indigo-300'
+                : 'bg-slate-900/80 border-white/15 text-white/40 hover:bg-white/10 hover:text-white/70'}`}>
+            {p.label}
+          </button>
+        ))}
+
+        {/* Current zoom display */}
+        <div className="w-7 h-5 rounded-md bg-slate-900/60 text-[8px] text-white/30 flex items-center justify-center font-mono">
+          {Math.round(zoom * 100)}
+        </div>
+
+        <button onClick={() => { setZoom(prev => Math.max(0.5, prev - 0.15)); setManualZoom(true); }}
           className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-white/70 text-sm font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">-</button>
       </div>
 
