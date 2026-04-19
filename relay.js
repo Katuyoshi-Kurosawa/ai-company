@@ -222,16 +222,25 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Listen for new lines
+    let closed = false;
     const listener = (entry) => {
-      res.write(`data: ${JSON.stringify(entry)}\n\n`);
-      if (entry.text.startsWith('__STATUS__:')) {
-        res.write(`data: ${JSON.stringify({ text: '__DONE__', stream: 'system' })}\n\n`);
-        res.end();
+      if (closed) return;
+      try {
+        res.write(`data: ${JSON.stringify(entry)}\n\n`);
+        if (entry.text.startsWith('__STATUS__:')) {
+          res.write(`data: ${JSON.stringify({ text: '__DONE__', stream: 'system' })}\n\n`);
+          res.end();
+          closed = true;
+          job.listeners.delete(listener);
+        }
+      } catch (err) {
+        // クライアント切断時のwrite errorを安全に処理
+        closed = true;
         job.listeners.delete(listener);
       }
     };
     job.listeners.add(listener);
-    req.on('close', () => job.listeners.delete(listener));
+    req.on('close', () => { closed = true; job.listeners.delete(listener); });
     return;
   }
 

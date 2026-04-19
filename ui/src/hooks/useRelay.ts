@@ -26,34 +26,35 @@ export function useRelay() {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const [activeType, setActiveType] = useState<string | null>(null);
+
+  // Refs for avoiding stale closures
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
-  const reconnectedRef = useRef(false);
   const evtSourceRef = useRef<EventSource | null>(null);
+  const statusRef = useRef<JobStatus>('idle');
+  const reconnectedRef = useRef(false); // true = successfully reconnected OR confirmed no active job
+  const mountedRef = useRef(true);
 
-  // Health check
-  const checkConnection = useCallback(async () => {
-    try {
-      const res = await fetch(`${RELAY_URL}/health`, { signal: AbortSignal.timeout(2000) });
-      if (res.ok) { setConnected(true); return true; }
-    } catch { /* ignore */ }
-    setConnected(false);
-    return false;
+  // Keep statusRef in sync
+  useEffect(() => { statusRef.current = status; }, [status]);
+
+  // Track mounted state
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
   }, []);
 
-  // Poll connection
-  useEffect(() => {
-    checkConnection();
-    const iv = setInterval(checkConnection, 5000);
-    return () => clearInterval(iv);
-  }, [checkConnection]);
+  // ── Timer management ──────────────────────────────────────
 
-  // Start elapsed timer
   const startTimer = useCallback((startedAt?: number) => {
     if (timerRef.current) clearInterval(timerRef.current);
     startTimeRef.current = startedAt || Date.now();
     timerRef.current = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      if (mountedRef.current) {
+        setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }
     }, 1000);
     setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000));
   }, []);
@@ -62,7 +63,8 @@ export function useRelay() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   }, []);
 
-  // Close existing EventSource before opening a new one
+  // ── EventSource management ────────────────────────────────
+
   const closeStream = useCallback(() => {
     if (evtSourceRef.current) {
       evtSourceRef.current.close();
@@ -78,66 +80,115 @@ export function useRelay() {
     };
   }, []);
 
-  // SSEストリームに接続する共通関数
+  // ── SSEストリームに接続する共通関数 ────────────────────────
+
   const connectToStream = useCallback((id: string, startedAt?: number) => {
-    closeStream(); // close any existing stream
+    closeStream();
     setJobId(id);
     setStatus('running');
+    setError(null);
     startTimer(startedAt);
 
+    console.log(`[relay] SSE接続開始: ${id}`);
     const evtSource = new EventSource(`${RELAY_URL}/stream/${id}`);
     evtSourceRef.current = evtSource;
+    let receivedStatus = false;
+
+    evtSource.onopen = () => {
+      console.log(`[relay] SSE接続成功: ${id}`);
+    };
 
     evtSource.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      if (data.text === '__DONE__') {
-        evtSource.close();
-        evtSourceRef.current = null;
-        stopTimer();
-        return;
+      if (!mountedRef.current) return;
+      try {
+        const data = JSON.parse(e.data);
+        if (data.text === '__DONE__') {
+          console.log(`[relay] SSE完了シグナル受信: ${id}`);
+          evtSource.close();
+          evtSourceRef.current = null;
+          stopTimer();
+          return;
+        }
+        if (data.text?.startsWith('__STATUS__:')) {
+          receivedStatus = true;
+          const s = data.text.replace('__STATUS__:', '');
+          setStatus(s === 'done' ? 'done' : 'error');
+          if (s === 'error') setError('プロセスが異常終了しました');
+          return;
+        }
+        setLines(prev => [...prev, data]);
+      } catch (err) {
+        console.warn('[relay] SSEメッセージパースエラー:', err);
       }
-      if (data.text?.startsWith('__STATUS__:')) {
-        const s = data.text.replace('__STATUS__:', '');
-        setStatus(s === 'done' ? 'done' : 'error');
-        if (s === 'error') setError('プロセスが異常終了しました');
-        return;
-      }
-      setLines(prev => [...prev, data]);
     };
+
     evtSource.onerror = () => {
+      console.warn(`[relay] SSEエラー: ${id}, receivedStatus=${receivedStatus}, currentStatus=${statusRef.current}`);
       evtSource.close();
       evtSourceRef.current = null;
       stopTimer();
-      // Set error status only if we haven't received a __STATUS__ message
-      setStatus(prev => prev === 'running' ? 'error' : prev);
-      setError(prev => prev ?? '接続が切断されました');
+      if (!mountedRef.current) return;
+      // __STATUS__メッセージを受信済みならstatusは既に更新済み、errorにしない
+      if (!receivedStatus && statusRef.current === 'running') {
+        setStatus('error');
+        setError('接続が切断されました');
+      }
     };
   }, [startTimer, stopTimer, closeStream]);
 
-  // ページロード時に実行中ジョブを検出して再接続
-  const [activeLabel, setActiveLabel] = useState<string | null>(null);
-  const [activeType, setActiveType] = useState<string | null>(null);
+  // ── Health check + 再接続 ─────────────────────────────────
+  // health checkが成功した時に、まだ再接続チェックしていなければ/activeを確認する
 
-  useEffect(() => {
-    if (reconnectedRef.current) return;
-    reconnectedRef.current = true;
+  const checkConnection = useCallback(async () => {
+    try {
+      const res = await fetch(`${RELAY_URL}/health`, { signal: AbortSignal.timeout(2000) });
+      if (!res.ok) { setConnected(false); return false; }
+      setConnected(true);
 
-    (async () => {
-      try {
-        const res = await fetch(`${RELAY_URL}/active`, { signal: AbortSignal.timeout(2000) });
-        if (!res.ok) return;
-        const active = await res.json();
-        if (active && active.id && active.status === 'running') {
-          setActiveLabel(active.label || null);
-          setActiveType(active.type || null);
-          connectToStream(active.id, active.startedAt);
+      // まだ再接続チェックしていない + idle状態 → /active を確認
+      if (!reconnectedRef.current && statusRef.current === 'idle') {
+        try {
+          console.log('[relay] アクティブジョブ確認中...');
+          const activeRes = await fetch(`${RELAY_URL}/active`, { signal: AbortSignal.timeout(2000) });
+          if (activeRes.ok) {
+            const active = await activeRes.json();
+            if (active && active.id && active.status === 'running') {
+              console.log(`[relay] アクティブジョブ検出: ${active.id} (${active.label})`);
+              if (mountedRef.current) {
+                setActiveLabel(active.label || null);
+                setActiveType(active.type || null);
+                connectToStream(active.id, active.startedAt);
+              }
+              reconnectedRef.current = true;
+            } else {
+              // アクティブジョブなし → 次回チェック不要
+              console.log('[relay] アクティブジョブなし');
+              reconnectedRef.current = true;
+            }
+          }
+          // fetchが失敗した場合はreconnectedRefをtrueにしない → 次のhealth checkで再試行
+        } catch {
+          console.warn('[relay] /active取得失敗、次回再試行');
+          // reconnectedRef.current は false のまま → 次の health check で再試行
         }
-      } catch { /* relay未起動なら無視 */ }
-    })();
+      }
+
+      return true;
+    } catch { /* ignore */ }
+    setConnected(false);
+    return false;
   }, [connectToStream]);
 
-  // Execute command
-  const execute = useCallback(async (type: string, args: Record<string, string | number>) => {
+  // Health checkポーリング
+  useEffect(() => {
+    checkConnection();
+    const iv = setInterval(checkConnection, 5000);
+    return () => clearInterval(iv);
+  }, [checkConnection]);
+
+  // ── Execute command ────────────────────────────────────────
+
+  const execute = useCallback(async (type: string, args: Record<string, string | number | string[]>) => {
     setLines([]);
     setError(null);
     setStatus('connecting');
@@ -170,6 +221,8 @@ export function useRelay() {
     }
   }, [connectToStream, stopTimer]);
 
+  // ── Reset ──────────────────────────────────────────────────
+
   const reset = useCallback(() => {
     closeStream();
     setJobId(null);
@@ -178,6 +231,8 @@ export function useRelay() {
     setElapsed(0);
     setError(null);
     stopTimer();
+    // reset後に新しいジョブが始まる可能性があるので再接続チェックを有効化
+    reconnectedRef.current = false;
   }, [stopTimer, closeStream]);
 
   return { connected, jobId, status, lines, elapsed, error, execute, reset, checkConnection, activeLabel, activeType };

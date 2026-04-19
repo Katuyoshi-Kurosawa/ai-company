@@ -51,8 +51,11 @@ export default function App() {
   const outputDir = useMemo(() => parseLogLines(relay.lines).outputDir, [relay.lines]);
 
   // relay再接続検出: ページリロード後に実行中ジョブがあれば復元
+  // relay.statusとrelay.jobIdを直接依存に入れて確実に反応させる
   useEffect(() => {
-    if (!executing && isRunning && relay.jobId) {
+    const nowRunning = relay.status === 'running';
+    if (!executing && nowRunning && relay.jobId) {
+      console.log(`[App] 再接続検出: jobId=${relay.jobId}, status=${relay.status}`);
       setExecuting(true);
       const typeLabel = relay.activeType === 'mtg' ? 'MTG' : '全工程実行';
       const label = relay.activeLabel ? `${typeLabel}: ${relay.activeLabel}` : '実行中（再接続）';
@@ -62,7 +65,7 @@ export default function App() {
       currentRecordId.current = execHistory.startRecord(recType, label, {});
       setView('office');
     }
-  }, [isRunning, relay.jobId]);
+  }, [relay.status, relay.jobId]);
 
   // 実行開始時にオフィスビューに自動切替
   useEffect(() => {
