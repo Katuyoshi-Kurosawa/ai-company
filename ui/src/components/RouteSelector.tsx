@@ -8,7 +8,7 @@ interface Props {
   agents: Agent[];
   routes: RouteOption[];
   theme: { bg: string; surface: string; border: string; text: string; muted: string };
-  onSelect: (route: RouteOption) => void;
+  onSelect: (route: RouteOption, requirementNotes?: string) => void;
   onAdjust: (route: RouteOption) => void;
   onSelectPreset?: (preset: RoutePreset) => void;
 }
@@ -16,6 +16,8 @@ interface Props {
 export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Props) {
   const [expandedType, setExpandedType] = useState<string | null>(null);
   const [adjustments, setAdjustments] = useState<Record<string, { agents: string[]; depth: number }>>({});
+  const [requirementNotes, setRequirementNotes] = useState('');
+  const [showNotes, setShowNotes] = useState(false);
 
   const getAgent = (id: string) => agents.find(a => a.id === id);
 
@@ -61,6 +63,41 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
 
   return (
     <div className="space-y-2">
+      {/* 要件ポイント入力（任意） */}
+      <div className="rounded-xl p-3" style={{ background: `${theme.surface}`, border: `1px solid ${theme.border}` }}>
+        <button onClick={() => setShowNotes(!showNotes)}
+          className="flex items-center gap-2 w-full text-left cursor-pointer">
+          <span className="text-sm">📝</span>
+          <span className="text-xs font-bold flex-1">要件ポイント（任意）</span>
+          <span className="text-[10px]" style={{ color: theme.muted }}>
+            {requirementNotes ? `${requirementNotes.split('\n').filter(l => l.trim()).length}件入力済み` : 'より良い成果のためにヒントを追加'}
+          </span>
+          <span className={`text-xs transition-transform ${showNotes ? 'rotate-180' : ''}`}>▼</span>
+        </button>
+        {showNotes && (
+          <div className="mt-2 space-y-2">
+            <textarea
+              value={requirementNotes}
+              onChange={e => setRequirementNotes(e.target.value)}
+              placeholder={"重視するポイントや条件を箇条書きで入力\n例:\n・犬2匹連れ（ペット同伴可の場所限定）\n・予算は1人5000円以内\n・午前中に回りたい"}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs h-24 resize-none focus:ring-1 focus:ring-indigo-500/50 focus:outline-none placeholder:text-white/20"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] flex-1" style={{ color: theme.muted }}>
+                入力するとエージェントへの指示に追加されます
+              </span>
+              {requirementNotes && (
+                <button onClick={() => setRequirementNotes('')}
+                  className="text-[10px] px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded cursor-pointer transition-colors"
+                  style={{ color: theme.muted }}>
+                  クリア
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {routes.map(route => {
         const adjusted = getAdjustedRoute(route);
         const isExpanded = expandedType === route.type;
@@ -171,7 +208,7 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
                   <button
                     onClick={() => {
                       const finalRoute = getAdjustedRoute(route);
-                      onSelect(finalRoute);
+                      onSelect(finalRoute, requirementNotes.trim() || undefined);
                     }}
                     className="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-bold cursor-pointer transition-colors">
                     ▶ 実行

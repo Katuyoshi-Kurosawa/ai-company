@@ -53,10 +53,13 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
   }, [companyTheme, agents]);
 
   // ルート選択時の実行ハンドラ
-  const handleRouteSelect = (route: RouteOption) => {
+  const handleRouteSelect = (route: RouteOption, requirementNotes?: string) => {
     if (!companyTheme.trim()) return;
+    const theme_with_notes = requirementNotes
+      ? `${companyTheme}\n\n【要件ポイント】\n${requirementNotes}`
+      : companyTheme;
     const args = {
-      theme: companyTheme,
+      theme: theme_with_notes,
       routeType: route.type,
       depth: route.depth,
       agents: route.agents.join(','),

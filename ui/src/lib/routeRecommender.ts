@@ -1,6 +1,6 @@
 import type { Agent } from '../types';
 
-export type RouteType = 'quick' | 'team' | 'full' | 'training' | 'expert';
+export type RouteType = string;
 
 export interface RouteOption {
   type: RouteType;
@@ -46,19 +46,23 @@ export interface ExecutionStat {
 }
 
 const STORAGE_KEY = 'ai-company-route-stats';
-const DEFAULT_ESTIMATES: Record<RouteType, number> = {
+const DEFAULT_ESTIMATES: Record<string, number> = {
   quick: 60,
+  duo: 180,
   team: 300,
-  full: 900,
-  training: 480,
   expert: 360,
+  creative: 300,
+  training: 480,
+  full: 900,
 };
-const DEFAULT_COSTS: Record<RouteType, string> = {
+const DEFAULT_COSTS: Record<string, string> = {
   quick: '$0.02',
+  duo: '$0.08',
   team: '$0.15',
-  full: '$0.80',
-  training: '$0.25',
   expert: '$0.30',
+  creative: '$0.20',
+  training: '$0.25',
+  full: '$0.80',
 };
 
 // キーワード→エージェントマッピング
@@ -251,6 +255,13 @@ export function recommendRoutes(instruction: string, agents: Agent[]): RouteOpti
   const experts = findExperts(agents, relevantSkills);
   const expertAgents = experts.map(e => e.agentId);
 
+  // duoルート: CEOと最適な1名のペア
+  const duoPartner = coreAgents.find(id => id !== 'secretary' && id !== 'ceo') || 'planner';
+  const duoAgents = ['ceo', duoPartner];
+
+  // creativeルート: ブレスト向きメンバー
+  const creativeAgents = [...new Set(['rd', 'marketing', 'planner', 'ui-designer'].filter(id => allAgentIds.includes(id)))];
+
   const routes: RouteOption[] = [
     {
       type: 'quick',
@@ -267,6 +278,20 @@ export function recommendRoutes(instruction: string, agents: Agent[]): RouteOpti
       stats: getRouteStats('quick'),
     },
     {
+      type: 'duo',
+      label: 'ペア',
+      icon: '👥',
+      description: `CEOと${agents.find(a => a.id === duoPartner)?.name?.split(' ')[0] || '担当者'}の2名で対応`,
+      agents: duoAgents,
+      depth: 'medium',
+      model: 'sonnet',
+      maxTurns: 10,
+      estimatedSec: estimateTime('duo', 2),
+      costEstimate: DEFAULT_COSTS.duo,
+      recommended: false,
+      stats: getRouteStats('duo'),
+    },
+    {
       type: 'team',
       label: 'チーム',
       icon: '📋',
@@ -281,18 +306,33 @@ export function recommendRoutes(instruction: string, agents: Agent[]): RouteOpti
       stats: getRouteStats('team'),
     },
     {
-      type: 'full',
-      label: '全社',
-      icon: '🏢',
-      description: '全13名が多角的に取り組みます',
-      agents: allAgentIds,
-      depth: 'heavy',
-      model: 'sonnet',
-      maxTurns: 15,
-      estimatedSec: estimateTime('full', 13),
-      costEstimate: DEFAULT_COSTS.full,
+      type: 'expert',
+      label: '専門',
+      icon: '🔬',
+      description: 'トップスキル保持者が深掘りします',
+      agents: expertAgents,
+      depth: 'medium',
+      model: 'opus',
+      maxTurns: 20,
+      estimatedSec: estimateTime('expert', expertAgents.length),
+      costEstimate: DEFAULT_COSTS.expert,
       recommended: false,
-      stats: getRouteStats('full'),
+      stats: getRouteStats('expert'),
+      expertInfo: { experts },
+    },
+    {
+      type: 'creative',
+      label: 'ブレスト',
+      icon: '💡',
+      description: 'R&D・マーケ・企画・デザインでアイデア発散',
+      agents: creativeAgents,
+      depth: 'medium',
+      model: 'sonnet',
+      maxTurns: 12,
+      estimatedSec: estimateTime('creative', creativeAgents.length),
+      costEstimate: DEFAULT_COSTS.creative,
+      recommended: false,
+      stats: getRouteStats('creative'),
     },
     {
       type: 'training',
@@ -313,21 +353,39 @@ export function recommendRoutes(instruction: string, agents: Agent[]): RouteOpti
       },
     },
     {
-      type: 'expert',
-      label: '専門',
-      icon: '🔬',
-      description: 'トップスキル保持者が深掘りします',
-      agents: expertAgents,
-      depth: 'medium',
-      model: 'opus',
-      maxTurns: 20,
-      estimatedSec: estimateTime('expert', expertAgents.length),
-      costEstimate: DEFAULT_COSTS.expert,
+      type: 'full',
+      label: '全社',
+      icon: '🏢',
+      description: '全13名が多角的に取り組みます',
+      agents: allAgentIds,
+      depth: 'heavy',
+      model: 'sonnet',
+      maxTurns: 15,
+      estimatedSec: estimateTime('full', 13),
+      costEstimate: DEFAULT_COSTS.full,
       recommended: false,
-      stats: getRouteStats('expert'),
-      expertInfo: { experts },
+      stats: getRouteStats('full'),
     },
   ];
+
+  // 保存済みプリセットもルートとして追加
+  const presets = loadPresets();
+  for (const p of presets) {
+    routes.push({
+      type: `preset:${p.id}`,
+      label: p.name,
+      icon: p.icon,
+      description: `プリセット: ${p.agents.length}名 · ${p.depth} · ${p.model}`,
+      agents: p.agents,
+      depth: p.depth,
+      model: p.model,
+      maxTurns: p.maxTurns,
+      estimatedSec: estimateTime('team', p.agents.length),
+      costEstimate: DEFAULT_COSTS[p.depth === 'lightweight' ? 'quick' : p.depth === 'heavy' ? 'full' : 'team'],
+      recommended: false,
+      stats: getRouteStats(`preset:${p.id}`),
+    });
+  }
 
   // ★おすすめ選定
   const recommendedType = selectRecommended(routes);
