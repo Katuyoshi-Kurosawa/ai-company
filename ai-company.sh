@@ -781,3 +781,4 @@ done
 notify_slack "🎉 AI会社プロジェクト完了 v5（重量モード）\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒\n成果物: $PROJECT_DIR"
 
 log "🏁 全工程終了"
+exit 0

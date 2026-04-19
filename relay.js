@@ -275,7 +275,7 @@ const server = http.createServer(async (req, res) => {
       d.toString().split('\n').filter(Boolean).forEach(line => push(line, 'stderr'));
     });
     proc.on('close', code => {
-      finishJob(job, code === 0 ? 'done' : 'error');
+      finishJob(job, code === 0 ? 'done' : 'error', code !== 0 ? `プロセスが終了コード ${code} で終了しました` : undefined);
     });
     proc.on('error', err => {
       finishJob(job, 'error', `Error: ${err.message}`);

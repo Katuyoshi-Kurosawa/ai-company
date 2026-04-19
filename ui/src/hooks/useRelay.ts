@@ -115,7 +115,14 @@ export function useRelay() {
           receivedStatus = true;
           const s = data.text.replace('__STATUS__:', '');
           setStatus(s === 'done' ? 'done' : 'error');
-          if (s === 'error') setError('プロセスが異常終了しました');
+          if (s === 'error') {
+            // 直前のstderrメッセージがあればそれをエラー内容に使う
+            setLines(prev => {
+              const lastStderr = [...prev].reverse().find(l => l.stream === 'stderr');
+              setError(lastStderr?.text || 'プロセスが異常終了しました');
+              return prev;
+            });
+          }
           return;
         }
         setLines(prev => [...prev, data]);
