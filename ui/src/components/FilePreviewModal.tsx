@@ -14,12 +14,13 @@ export function FilePreviewModal({ filePath, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const fileName = filePath.split('/').pop() || filePath;
+  const cleanPath = filePath.replace(/[`'"]/g, '');
+  const fileName = cleanPath.split('/').pop() || cleanPath;
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${RELAY_URL}/file?path=${encodeURIComponent(filePath)}`);
+        const res = await fetch(`${RELAY_URL}/file?path=${encodeURIComponent(cleanPath)}`);
         if (!res.ok) throw new Error('ファイルを読み込めませんでした');
         const data = await res.json();
         setContent(data.content);

@@ -57,7 +57,7 @@ export function parseLogLines(lines: { text: string; time: number }[]): {
 
     // 出力ディレクトリ検出
     const dirMatch = txt.match(/出力先:\s*(\S+)/);
-    if (dirMatch) outputDir = dirMatch[1];
+    if (dirMatch) outputDir = dirMatch[1].replace(/[`'"]/g, '');
 
     // フェーズ検出
     if (/PHASE \d/.test(txt) || /━━━/.test(txt)) {
@@ -78,9 +78,10 @@ export function parseLogLines(lines: { text: string; time: number }[]): {
     const fileMatch = txt.match(/\.(md|json|html|sql|txt|css|tsx?|jsx?)\b/);
     if (fileMatch && (txt.includes('出力') || txt.includes('→') || txt.includes('/'))) {
       const pathMatch = txt.match(/(\.\/output\/\S+|[^\s]+\.(md|json|html|sql))/);
-      if (pathMatch && !files.includes(pathMatch[1])) {
-        files.push(pathMatch[1]);
-        actions.push({ time: t, type: 'file', label: pathMatch[1] });
+      const cleanPath = pathMatch[1].replace(/[`'"]/g, '');
+      if (cleanPath && !files.includes(cleanPath)) {
+        files.push(cleanPath);
+        actions.push({ time: t, type: 'file', label: cleanPath });
       }
     }
 
