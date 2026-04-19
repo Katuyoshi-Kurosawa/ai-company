@@ -500,12 +500,10 @@ export function OfficeFloor({
       setPanOffset({ x: 0, y: 0 });
       return;
     }
-    const activeRoom = ROOMS.find(r => activeRooms.has(r.id));
-    if (activeRoom) {
-      const center = iso(activeRoom.gx + activeRoom.w / 2, activeRoom.gy + activeRoom.d / 2);
-      setZoom(1.5);
-      setZoomTarget({ x: center.x, y: center.y });
-    }
+    // 実行中は全体が見えるズームレベルを維持（自動ズームで拡大しすぎない）
+    setZoom(1);
+    setZoomTarget(null);
+    setPanOffset({ x: 0, y: 0 });
   }, [executing, isLive, activeRooms, manualZoom]);
 
   // Wheel zoom
