@@ -723,15 +723,15 @@ export function OfficeFloor({
                   ) : null}
                   <div className="text-center mt-0.5">
                     {/* Name plate with dept color */}
-                    <div className="inline-flex flex-col items-center rounded-md px-1.5 py-0.5"
-                      style={{ background: `${deptColor}33`, border: `1px solid ${deptColor}55` }}>
+                    <div className="inline-flex flex-col items-center rounded-md px-1.5 py-0.5 backdrop-blur-sm"
+                      style={{ background: 'rgba(0,0,0,0.75)', border: `1.5px solid ${deptColor}`, boxShadow: `0 0 6px ${deptColor}44` }}>
                       <div className="flex items-center gap-0.5">
                         {isOpus && <span className="text-[6px]" style={{ color: '#fbbf24' }}>★</span>}
-                        <span className="text-[9px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate max-w-[60px] leading-tight">
+                        <span className="text-[9px] font-bold text-white truncate max-w-[60px] leading-tight">
                           {agent.name.split(' ')[0]}
                         </span>
                       </div>
-                      <span className="text-[7px] font-medium truncate max-w-[64px] leading-none" style={{ color: deptColor }}>
+                      <span className="text-[7px] font-bold truncate max-w-[64px] leading-none" style={{ color: deptColor, textShadow: `0 0 4px ${deptColor}88` }}>
                         {shortTitle}
                       </span>
                     </div>
