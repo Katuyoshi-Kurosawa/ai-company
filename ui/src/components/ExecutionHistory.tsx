@@ -237,29 +237,29 @@ function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-5 py-4 border-b" style={{ borderColor: theme.border }}>
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <TypeBadge type={r.type} />
-            <StatusBadge status={r.status} />
+      <div className="px-5 py-3 border-b" style={{ borderColor: theme.border }}>
+        <div className="flex items-center gap-2 mb-1.5">
+          <TypeBadge type={r.type} />
+          <StatusBadge status={r.status} />
+        </div>
+        <h2 className="text-base font-bold mb-1 break-all">{r.label || '(無題)'}</h2>
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] flex items-center gap-3" style={{ color: theme.muted }}>
+            <span>{formatDate(r.startedAt)}</span>
+            {r.finishedAt && <span>→ {formatDate(r.finishedAt)}</span>}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {onRetry && r.status !== 'running' && (
               <button onClick={onRetry}
-                className="text-[10px] px-2.5 py-1 bg-indigo-500/15 text-indigo-400 rounded hover:bg-indigo-500/25 cursor-pointer transition-colors font-bold">
+                className="text-[10px] px-2 py-1 bg-indigo-500/15 text-indigo-400 rounded hover:bg-indigo-500/25 cursor-pointer transition-colors font-bold">
                 🔄 再実行
               </button>
             )}
             <button onClick={onDelete}
               className="text-[10px] px-2 py-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 cursor-pointer transition-colors">
-              削除
+              🗑
             </button>
           </div>
-        </div>
-        <h2 className="text-base font-bold mb-1">{r.label || '(無題)'}</h2>
-        <div className="text-[10px] flex items-center gap-3" style={{ color: theme.muted }}>
-          <span>{formatDate(r.startedAt)}</span>
-          {r.finishedAt && <span>→ {formatDate(r.finishedAt)}</span>}
         </div>
       </div>
 
