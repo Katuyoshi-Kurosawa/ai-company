@@ -6,6 +6,7 @@ interface Props {
   records: ExecutionRecord[];
   onDelete: (id: string) => void;
   onClearAll: () => void;
+  onRetry?: (record: ExecutionRecord) => void;
   theme: { bg: string; surface: string; border: string; text: string; muted: string };
 }
 
@@ -214,8 +215,8 @@ function RecordCard({ record, selected, onClick, theme }: {
 }
 
 /* ── Detail panel ── */
-function DetailPanel({ record, onDelete, onPreview, theme }: {
-  record: ExecutionRecord; onDelete: () => void; onPreview: (path: string) => void; theme: Props['theme'];
+function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
+  record: ExecutionRecord; onDelete: () => void; onRetry?: () => void; onPreview: (path: string) => void; theme: Props['theme'];
 }) {
   const r = record;
   const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'files'>('overview');
@@ -242,10 +243,18 @@ function DetailPanel({ record, onDelete, onPreview, theme }: {
             <TypeBadge type={r.type} />
             <StatusBadge status={r.status} />
           </div>
-          <button onClick={onDelete}
-            className="text-[10px] px-2 py-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 cursor-pointer transition-colors">
-            削除
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onRetry && r.status !== 'running' && (
+              <button onClick={onRetry}
+                className="text-[10px] px-2.5 py-1 bg-indigo-500/15 text-indigo-400 rounded hover:bg-indigo-500/25 cursor-pointer transition-colors font-bold">
+                🔄 再実行
+              </button>
+            )}
+            <button onClick={onDelete}
+              className="text-[10px] px-2 py-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20 cursor-pointer transition-colors">
+              削除
+            </button>
+          </div>
         </div>
         <h2 className="text-base font-bold mb-1">{r.label || '(無題)'}</h2>
         <div className="text-[10px] flex items-center gap-3" style={{ color: theme.muted }}>
@@ -417,7 +426,7 @@ function DetailPanel({ record, onDelete, onPreview, theme }: {
 }
 
 /* ── Main component ── */
-export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props) {
+export function ExecutionHistory({ records, onDelete, onClearAll, onRetry, theme }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'done' | 'error'>('all');
@@ -545,6 +554,7 @@ export function ExecutionHistory({ records, onDelete, onClearAll, theme }: Props
           <DetailPanel
             record={selected}
             onDelete={() => { onDelete(selected.id); setSelectedId(null); }}
+            onRetry={onRetry ? () => onRetry(selected) : undefined}
             onPreview={setPreviewFile}
             theme={theme}
           />

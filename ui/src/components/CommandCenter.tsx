@@ -75,6 +75,14 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     setSelectedRoute(route);
   };
 
+  // 実行履歴から再実行
+  const handleRetry = (record: ExecutionRecord) => {
+    if (!relay.connected) return;
+    const args = record.args as Record<string, string | number>;
+    relay.execute(record.type, args);
+    onExecute(`🔄 再実行: ${record.label}`, record.type as 'company' | 'mtg', record.args);
+  };
+
   const handleMtgStart = () => {
     if (!mtgAgenda.trim()) return;
     const args = { type: mtgType, agenda: mtgAgenda, rounds: mtgRounds, conflict: mtgConflict };
@@ -185,6 +193,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
             records={history}
             onDelete={onDeleteHistory}
             onClearAll={onClearHistory}
+            onRetry={relay.connected ? handleRetry : undefined}
             theme={theme}
           />
         </div>
