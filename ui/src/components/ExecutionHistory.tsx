@@ -427,12 +427,13 @@ function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
 
 /* ── Main component ── */
 export function ExecutionHistory({ records, onDelete, onClearAll, onRetry, theme }: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(records[0]?.id ?? null);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'done' | 'error'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'company' | 'mtg' | 'escalation'>('all');
   const [search, setSearch] = useState('');
-  const selected = records.find(r => r.id === selectedId);
+  // 選択中のレコードが消えた or 未選択なら直近を自動選択
+  const selected = records.find(r => r.id === selectedId) ?? records[0] ?? null;
 
   const filtered = useMemo(() => {
     return records.filter(r => {
