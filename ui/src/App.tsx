@@ -256,8 +256,8 @@ export default function App() {
       </nav>
 
       {/* Main */}
-      <div className="flex-1 flex min-h-0">
-        <main className={`flex-1 overflow-auto ${executing ? 'pb-32' : ''}`}>
+      <div className="flex-1 flex min-h-0 min-w-0">
+        <main className={`flex-1 min-w-0 overflow-auto ${executing ? 'pb-32' : ''}`}>
           {view === 'office' && (
             <div className="h-full">
               <OfficeFloor

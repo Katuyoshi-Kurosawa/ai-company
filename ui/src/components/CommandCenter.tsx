@@ -102,9 +102,9 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
   }, [mode, selectedRoute, agents]);
 
   return (
-    <div className="flex gap-6 h-full">
+    <div className="flex gap-6 h-full min-w-0">
       {/* Left sidebar */}
-      <div className="w-72 shrink-0 space-y-4">
+      <div className="w-60 shrink-0 space-y-4">
         {/* Connection */}
         <div className="rounded-xl p-4"
           style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
@@ -188,7 +188,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
 
       {/* Right: Content area */}
       {mode === 'history' ? (
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <ExecutionHistory
             records={history}
             onDelete={onDeleteHistory}

@@ -451,9 +451,9 @@ export function ExecutionHistory({ records, onDelete, onClearAll, onRetry, theme
   }, [records, statusFilter, typeFilter, search]);
 
   return (
-    <div className="flex gap-4 h-full">
+    <div className="flex gap-4 h-full min-w-0">
       {/* List */}
-      <div className="w-[420px] shrink-0 rounded-xl flex flex-col"
+      <div className="w-[360px] shrink-0 rounded-xl flex flex-col"
         style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
         {/* Header */}
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: theme.border }}>
@@ -548,7 +548,7 @@ export function ExecutionHistory({ records, onDelete, onClearAll, onRetry, theme
       </div>
 
       {/* Detail */}
-      <div className="flex-1 rounded-xl overflow-hidden"
+      <div className="flex-1 min-w-0 rounded-xl overflow-hidden"
         style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
         {selected ? (
           <DetailPanel
