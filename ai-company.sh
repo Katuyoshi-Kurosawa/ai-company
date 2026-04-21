@@ -50,9 +50,11 @@ log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_DIR/${TIMESTAMP}.log"; }
 notify_slack() {
   local WEBHOOK_URL="${SLACK_WEBHOOK_URL:-}"
   if [ -n "$WEBHOOK_URL" ]; then
-    curl -s -X POST "$WEBHOOK_URL" \
+    if curl -s -X POST "$WEBHOOK_URL" \
       -H 'Content-Type: application/json' \
-      -d "{\"text\": \"$1\"}" > /dev/null 2>&1 || true
+      -d "{\"text\": \"$1\"}" > /dev/null 2>&1; then
+      log "__SLACK_SENT__"
+    fi
   fi
 }
 

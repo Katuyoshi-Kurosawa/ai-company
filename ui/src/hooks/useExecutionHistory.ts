@@ -128,8 +128,8 @@ export function parseLogLines(lines: { text: string; time: number }[]): {
       }
     }
 
-    // Slack通知
-    if (txt.includes('Slack') || txt.includes('slack') || txt.includes('notify_slack')) {
+    // Slack通知（実際に送信成功した場合のみ）
+    if (txt.includes('__SLACK_SENT__')) {
       slackSent = true;
       actions.push({ time: t, type: 'slack', label: 'Slack通知送信' });
     }
