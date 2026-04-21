@@ -439,10 +439,11 @@ if [ "$THEME_WEIGHT" = "lightweight" ]; then
 これはプロジェクト指示ではなく、挨拶や簡単なやりとりです。
 
 秘書として適切に応答し、$PROJECT_DIR/secretary-report.md に出力してください。
+※ファイル出力は1回で完了させること。
 - 社長や社員の近況を交えた温かい返答
 - 必要に応じて本日の予定や進行中の案件を簡潔に報告
 - 何かプロジェクト指示があればお気軽にどうぞ、と添える
-" "haiku" "3"
+" "haiku" "5"
   add_exp "secretary" 10 "軽量応答"
 
   PROJECT_END=$(date +%s)
