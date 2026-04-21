@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { Agent } from '../types';
 import type { JobStatus, LogLine } from '../hooks/useRelay';
 import { PixelCharacter } from './PixelCharacter';
@@ -163,6 +163,84 @@ function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
   return { activeAgents, currentActivity, latestAgent };
 }
 
+// ログから直近の思考・作業内容を抽出（ノイズ除外）
+function extractThoughts(lines: LogLine[], agents: Agent[]): {
+  agentId: string | null;
+  agentName: string;
+  agentIcon: string;
+  thoughts: string[];
+}[] {
+  // ノイズ行のパターン
+  const NOISE = /^(\s*$|╔|╚|║|─|━|═|┌|└|│|├|╭|╰|⎿|⎡|⎣|\[[\d:]+\]|__REVIEW|__SLACK|__STATUS|__DONE)/;
+  const SYSTEM_LINE = /^(\[[\d:]+\]\s*)?(🚀|✅|⚠️|⏰|❌|💫|📊|📁|📌|🏢|🎉|🏁|📝|🔧)/;
+  const META_LINE = /^(Error:|Warning:|Reached max turns|Usage:|Model:|Cost:|\s*\d+[.\d]*\s*(tokens?|input|output))/i;
+
+  const result: { agentId: string | null; agentName: string; agentIcon: string; thoughts: string[] }[] = [];
+  let currentAgent: { id: string | null; name: string; icon: string } = { id: null, name: '', icon: '🤖' };
+  let currentThoughts: string[] = [];
+
+  const flushAgent = () => {
+    if (currentThoughts.length > 0 && currentAgent.name) {
+      // 既存エントリにマージ or 新規追加
+      const existing = result.find(r => r.agentId === currentAgent.id);
+      if (existing) {
+        existing.thoughts = [...existing.thoughts, ...currentThoughts].slice(-8);
+      } else {
+        result.push({
+          agentId: currentAgent.id,
+          agentName: currentAgent.name,
+          agentIcon: currentAgent.icon,
+          thoughts: currentThoughts.slice(-8),
+        });
+      }
+    }
+    currentThoughts = [];
+  };
+
+  for (const line of lines) {
+    const txt = line.text;
+
+    // エージェント開始を検出 → 新しいエージェントに切替
+    if (txt.includes('🚀') && txt.includes('開始')) {
+      flushAgent();
+      const match = txt.match(/🚀\s*(.+?)\s*開始/);
+      if (match) {
+        const fullName = match[1].trim();
+        const agent = agents.find(a => fullName.includes(a.name.split(' ')[0]));
+        currentAgent = {
+          id: agent?.id ?? null,
+          name: agent ? agent.name : fullName,
+          icon: agent?.visual?.icon ?? '🤖',
+        };
+      }
+      continue;
+    }
+
+    // エージェント完了 → flush
+    if (txt.includes('✅') || txt.includes('⚠️') || txt.includes('❌') || txt.includes('⏰')) {
+      if (txt.includes('完了') || txt.includes('ターン上限') || txt.includes('エラー終了') || txt.includes('タイムアウト')) {
+        flushAgent();
+        continue;
+      }
+    }
+
+    // ノイズ除外
+    if (NOISE.test(txt)) continue;
+    if (SYSTEM_LINE.test(txt)) continue;
+    if (META_LINE.test(txt)) continue;
+    if (txt.length < 3) continue;
+
+    // 意味のある行を思考として記録
+    const cleaned = txt.replace(/^\[[\d:]+\]\s*/, '').trim();
+    if (cleaned.length >= 3) {
+      currentThoughts.push(cleaned);
+    }
+  }
+  flushAgent();
+
+  return result;
+}
+
 // コンパクト版: ヘッダーに埋め込むインジケーター
 export function ExecutionIndicator({ status, elapsed, onClick, activity }: {
   status: JobStatus;
@@ -213,6 +291,75 @@ function fileIcon(name: string): string {
   if (name.endsWith('.html')) return '🌐';
   if (name.endsWith('.sql')) return '🗄️';
   return '📄';
+}
+
+// ライブ思考フィード
+function LiveThoughtFeed({ lines, agents }: { lines: LogLine[]; agents: Agent[] }) {
+  const feedRef = useRef<HTMLDivElement>(null);
+  const thoughts = useMemo(() => extractThoughts(lines, agents), [lines, agents]);
+
+  // 最新のアクティブエージェント（最後に思考があるもの）を取得
+  const latestActive = thoughts.length > 0 ? thoughts[thoughts.length - 1] : null;
+  // 完了済みエージェントの最新思考（直近3つ）
+  const recentCompleted = thoughts.slice(-4, -1);
+
+  useEffect(() => {
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' });
+  }, [lines.length]);
+
+  if (!latestActive) return null;
+
+  return (
+    <div className="border-t border-white/10 bg-black/30">
+      <div ref={feedRef} className="max-h-32 overflow-y-auto px-4 py-2 space-y-2">
+        {/* 完了済みエージェントの要約（折りたたみ表示） */}
+        {recentCompleted.map((entry, i) => (
+          <div key={i} className="flex gap-2 opacity-40">
+            <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+              ✓
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold text-white/50">{entry.agentName.split(' ')[0]}</span>
+              <span className="text-[10px] text-white/30 ml-1.5 truncate block">
+                {entry.thoughts[entry.thoughts.length - 1]?.slice(0, 80)}
+              </span>
+            </div>
+          </div>
+        ))}
+
+        {/* アクティブエージェントの思考 */}
+        <div className="flex gap-2.5">
+          <div className="shrink-0 mt-1">
+            <div className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-sm">
+              {latestActive.agentIcon || '🤖'}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[11px] font-bold text-indigo-300">{latestActive.agentName.split(' ')[0]}</span>
+              <span className="text-[9px] text-white/30">思考中</span>
+              <span className="flex gap-0.5">
+                <span className="w-1 h-1 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1 h-1 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1 h-1 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+            </div>
+            <div className="bg-white/5 rounded-lg px-3 py-2 border border-white/5">
+              {latestActive.thoughts.slice(-5).map((thought, i) => (
+                <div key={i} className={`text-[11px] leading-relaxed ${
+                  i === latestActive.thoughts.slice(-5).length - 1
+                    ? 'text-white/80'
+                    : 'text-white/40'
+                }`}>
+                  {thought.length > 120 ? thought.slice(0, 120) + '…' : thought}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // 下部パネル: スライドアップで表示
@@ -366,6 +513,11 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
             </button>
           )}
         </div>
+      )}
+
+      {/* Live thought feed (実行中のみ) */}
+      {isRunning && lines.length > 0 && (
+        <LiveThoughtFeed lines={lines} agents={agents} />
       )}
 
       {/* Agent avatars row */}
