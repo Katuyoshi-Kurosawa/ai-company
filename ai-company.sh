@@ -183,10 +183,17 @@ run_agent() {
   done
   wait "$agent_pid" 2>/dev/null || exit_code=$?
 
-  # ログをstdoutに出力（relay.jsが拾えるように）
+  # ログをstdoutに出力（relay.jsが拾えるように、タイムスタンプ付きで各行出力）
   if [ -s "$agent_log" ]; then
-    cat "$agent_log"
+    while IFS= read -r line; do
+      [ -n "$line" ] && log "💬 ${agent_id}: $line"
+    done < "$agent_log"
   fi
+
+  # 出力ファイルの検出・ログ出力（UIのFilesタブで検出できるように）
+  for f in "$PROJECT_DIR"/*.md "$PROJECT_DIR"/*.json "$PROJECT_DIR"/*.html; do
+    [ -f "$f" ] && log "📄 出力: $f"
+  done
 
   record_agent_end "$agent_id"
   local agent_duration=$(( $(date +%s) - agent_start_ts ))
@@ -452,6 +459,7 @@ if [ "$THEME_WEIGHT" = "lightweight" ]; then
   log "============================================"
   log "🏢 AI会社シミュレーション v5 起動（軽量モード）"
   log "📌 テーマ: $THEME"
+  log "📁 出力先: $PROJECT_DIR"
   log "============================================"
   log ""
   log "━━━ 軽量モード: CEO秘書が応答 ━━━"
