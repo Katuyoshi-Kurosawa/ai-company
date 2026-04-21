@@ -55,10 +55,9 @@ const SLOTS: Record<string, { gx: number; gy: number }[]> = {
   'meeting-b':   [{ gx:3.8, gy:4.8 }, { gx:4.5, gy:5.2 }, { gx:5.2, gy:5.6 }],
   'break':       [{ gx:7.2, gy:5 }, { gx:8, gy:5.5 }],
   'open-office': [
-    { gx:1, gy:8.3 }, { gx:2.3, gy:8.6 }, { gx:3.6, gy:8.9 },
-    { gx:5, gy:8.3 }, { gx:6.3, gy:8.6 }, { gx:7.6, gy:8.9 },
-    { gx:1.5, gy:9.6 }, { gx:3, gy:9.9 }, { gx:4.5, gy:9.6 },
-    { gx:6, gy:9.9 },
+    { gx:1.2, gy:8.0 }, { gx:3.3, gy:8.2 }, { gx:5.4, gy:8.0 }, { gx:7.5, gy:8.2 },
+    { gx:2.0, gy:9.0 }, { gx:4.5, gy:9.2 }, { gx:7.0, gy:9.0 },
+    { gx:1.0, gy:9.8 }, { gx:3.5, gy:10.0 }, { gx:6.0, gy:9.8 },
   ],
 };
 

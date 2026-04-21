@@ -139,12 +139,12 @@ interface RoomDef {
 }
 
 const ROOMS: RoomDef[] = [
-  { id: 'president',   gx: 0, gy: 0, w: 4, d: 3,   floor: '#c8b890', wB: '#a08860', wL: '#b8a070', wR: '#907848', wF: '#907848', label: '社長室',         icon: '🏛️' },
-  { id: 'executive',   gx: 5, gy: 0, w: 4, d: 3,   floor: '#98a8c0', wB: '#6880a0', wL: '#7890b0', wR: '#587090', wF: '#587090', label: '役員室',         icon: '🪑', extRight: true },
-  { id: 'meeting-a',   gx: 0, gy: 4, w: 3, d: 2.5, floor: '#98c0a8', wB: '#609878', wL: '#78b090', wR: '#508868', wF: '#508868', label: '会議室A',        icon: '📊' },
-  { id: 'meeting-b',   gx: 3, gy: 4, w: 3, d: 2.5, floor: '#98c0a8', wB: '#609878', wL: '#78b090', wR: '#508868', wF: '#508868', label: '会議室B',        icon: '💬' },
-  { id: 'break',        gx: 6, gy: 4, w: 3, d: 2.5, floor: '#c8b098', wB: '#a08060', wL: '#b89878', wR: '#907048', wF: '#907048', label: '休憩室',         icon: '☕', extRight: true },
-  { id: 'open-office',  gx: 0, gy: 7.5, w: 9, d: 3, floor: '#a0a8b8', wB: '#708098', wL: '#8898a8', wR: '#607888', wF: '#607888', label: 'オープンオフィス', icon: '🖥️', extRight: true, extFront: true },
+  { id: 'president',   gx: 0, gy: 0, w: 4, d: 3,   floor: '#d8c8a4', wB: '#b8986c', wL: '#c8a87c', wR: '#a88860', wF: '#a88860', label: '社長室',         icon: '🏛️' },
+  { id: 'executive',   gx: 5, gy: 0, w: 4, d: 3,   floor: '#b0c0d8', wB: '#7898b8', wL: '#88a8c8', wR: '#6888a8', wF: '#6888a8', label: '役員室',         icon: '🪑', extRight: true },
+  { id: 'meeting-a',   gx: 0, gy: 4, w: 3, d: 2.5, floor: '#a8d4b8', wB: '#70a888', wL: '#88c0a0', wR: '#609878', wF: '#609878', label: '会議室A',        icon: '📊' },
+  { id: 'meeting-b',   gx: 3, gy: 4, w: 3, d: 2.5, floor: '#a8d4b8', wB: '#70a888', wL: '#88c0a0', wR: '#609878', wF: '#609878', label: '会議室B',        icon: '💬' },
+  { id: 'break',        gx: 6, gy: 4, w: 3, d: 2.5, floor: '#d8c0a4', wB: '#b89070', wL: '#c8a888', wR: '#a88058', wF: '#a88058', label: '休憩室',         icon: '☕', extRight: true },
+  { id: 'open-office',  gx: 0, gy: 7.5, w: 9, d: 3, floor: '#b8c0d0', wB: '#8898b0', wL: '#98a8b8', wR: '#7088a0', wF: '#7088a0', label: 'オフィス',       icon: '🖥️', extRight: true, extFront: true },
 ];
 
 const SLOTS: Record<string, { gx: number; gy: number }[]> = {
@@ -154,10 +154,9 @@ const SLOTS: Record<string, { gx: number; gy: number }[]> = {
   'meeting-b':   [{ gx:3.8, gy:4.8 }, { gx:4.5, gy:5.2 }, { gx:5.2, gy:5.6 }],
   'break':       [{ gx:7.2, gy:5 }, { gx:8, gy:5.5 }],
   'open-office': [
-    { gx:1, gy:8.3 }, { gx:2.3, gy:8.6 }, { gx:3.6, gy:8.9 },
-    { gx:5, gy:8.3 }, { gx:6.3, gy:8.6 }, { gx:7.6, gy:8.9 },
-    { gx:1.5, gy:9.6 }, { gx:3, gy:9.9 }, { gx:4.5, gy:9.6 },
-    { gx:6, gy:9.9 },
+    { gx:1.2, gy:8.0 }, { gx:3.3, gy:8.2 }, { gx:5.4, gy:8.0 }, { gx:7.5, gy:8.2 },
+    { gx:2.0, gy:9.0 }, { gx:4.5, gy:9.2 }, { gx:7.0, gy:9.0 },
+    { gx:1.0, gy:9.8 }, { gx:3.5, gy:10.0 }, { gx:6.0, gy:9.8 },
   ],
 };
 
@@ -473,31 +472,45 @@ function BottomDock({ agents, selectedId, onSelect, activities }: {
   agents: Agent[]; selectedId?: string; onSelect: (a: Agent) => void; activities?: Map<string, AgentActivity>;
 }) {
   return (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
-      <div className="flex items-end gap-1 px-3 py-2 rounded-xl backdrop-blur-md border border-white/15"
-        style={{ background: 'rgba(15,23,42,0.7)', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[95vw]">
+      <div className="flex items-end gap-0.5 px-2 py-1.5 rounded-xl backdrop-blur-md border overflow-x-auto"
+        style={{
+          background: 'linear-gradient(180deg, rgba(15,20,35,0.85), rgba(8,12,24,0.9))',
+          borderColor: 'rgba(212,175,55,0.2)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
+        }}>
         {agents.map(a => {
           const act = activities?.get(a.id);
           const isSelected = a.id === selectedId;
           const isWorking = act?.action === 'working' || act?.action === 'meeting';
+          const deptColor = DEPT_COLORS[a.dept] || DEPT_COLORS.default;
           return (
             <button key={a.id} onClick={() => onSelect(a)}
-              className={`relative flex flex-col items-center cursor-pointer transition-all duration-300 px-1
-                ${isSelected ? 'scale-110 -translate-y-1' : 'hover:scale-105 hover:-translate-y-0.5'}`}>
-              <div className="w-8 h-9 rounded-lg flex items-center justify-center text-sm border transition-colors overflow-visible"
-                style={{
-                  background: isSelected ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.05)',
-                  borderColor: isSelected ? 'rgba(99,102,241,0.5)' : 'transparent',
-                }}>
+              className={`relative flex flex-col items-center cursor-pointer transition-all duration-300 rounded-lg px-1 py-1 min-w-[52px]
+                ${isSelected ? 'scale-105 -translate-y-0.5' : 'hover:scale-105 hover:-translate-y-0.5'}`}
+              style={{
+                background: isSelected ? `${deptColor}20` : 'transparent',
+                border: isSelected ? `1px solid ${deptColor}40` : '1px solid transparent',
+              }}>
+              {/* キャラクター */}
+              <div className="w-10 h-11 flex items-center justify-center overflow-visible">
                 <PixelCharacter visual={a.visual} size="sm" active={a.active} />
               </div>
+              {/* ステータスドット */}
               {isWorking && (
-                <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                <div className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-blue-400 animate-pulse"
+                  style={{ boxShadow: '0 0 6px rgba(96,165,250,0.6)' }} />
               )}
-              <span className="text-[7px] text-white/40 mt-0.5 truncate w-10 text-center">{a.name.split(' ')[0]}</span>
-              <span className="text-[5px] truncate w-10 text-center" style={{ color: DEPT_COLORS[a.dept] || DEPT_COLORS.default }}>
+              {/* 名前 */}
+              <span className="text-[8px] font-bold text-white/70 mt-0.5 truncate w-12 text-center leading-tight">
+                {a.name.split(' ')[0]}
+              </span>
+              {/* 役職 */}
+              <span className="text-[6px] font-medium truncate w-12 text-center leading-tight" style={{ color: deptColor }}>
                 {a.title.replace(/部長$/, '')}
               </span>
+              {/* Lv */}
+              <span className="text-[6px] text-white/30 leading-tight">Lv.{a.level}</span>
             </button>
           );
         })}
@@ -649,8 +662,8 @@ export function OfficeFloor({
             ))}
 
             {/* Ground */}
-            <path d={floorD(-0.8, -0.5, 10.6, 12)} fill="#2a2a4a" />
-            <path d={floorD(-0.5, -0.3, 10, 11.4)} fill="#1e1e3a" />
+            <path d={floorD(-0.8, -0.5, 10.6, 12)} fill="#2e2840" />
+            <path d={floorD(-0.5, -0.3, 10, 11.4)} fill="#242038" />
 
             {/* Rooms */}
             {sortedRooms.map(room => {
@@ -707,8 +720,9 @@ export function OfficeFloor({
             {(() => { const p = iso(4, 11.2);
               return (
                 <g>
-                  <rect x={p.x - 30} y={p.y - 3} width={60} height={12} rx={3} fill="#0f172a" opacity={0.9} />
-                  <text x={p.x} y={p.y + 6} textAnchor="middle" fill="#6366f1" fontSize={7} fontWeight="bold">AI COMPANY</text>
+                  <rect x={p.x - 38} y={p.y - 5} width={76} height={16} rx={2} fill="#1a1520" stroke="rgba(212,175,55,0.3)" strokeWidth={1} />
+                  <rect x={p.x - 36} y={p.y - 3} width={72} height={12} rx={1} fill="none" stroke="rgba(212,175,55,0.15)" strokeWidth={0.5} />
+                  <text x={p.x} y={p.y + 6} textAnchor="middle" fill="rgba(212,175,55,0.8)" fontSize={8} fontWeight="bold" letterSpacing={2}>AI COMPANY</text>
                 </g>
               );
             })()}
@@ -737,68 +751,99 @@ export function OfficeFloor({
               const slot = slots[i];
               const pos = iso(slot.gx, slot.gy);
               const pctL = (pos.x / VW) * 100;
-              const pctT = ((pos.y - 10) / VH) * 100;
+              const pctT = ((pos.y + 10) / VH) * 100;
               const showBubble = bubbleAgentId === agent.id;
               const activity = activities?.get(agent.id);
               const deptColor = DEPT_COLORS[agent.dept] || DEPT_COLORS.default;
               const isOpus = agent.model === 'opus';
-              const shortTitle = agent.title.replace(/部長$/, '').replace(/CEO/, 'CEO');
+
+              // 吹き出し用の上部アンカー位置
+              const speechPctT = ((pos.y - 20) / VH) * 100;
+
               return (
-                <div key={agent.id} ref={showBubble ? bubbleAnchorRef : undefined} className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, -100%)', zIndex: showBubble ? 50 : 20 }}>
-                  {showBubble ? (
-                    <AgentBubblePanel
-                      agent={agent}
-                      onClose={() => setBubbleAgentId(null)}
-                      onShowDetail={() => { setBubbleAgentId(null); onShowDetail?.(agent); }}
-                      anchorRef={bubbleAnchorRef}
-                    />
-                  ) : (activity?.speech || autoChat.messages.get(agent.id)) ? (
-                    <SpeechBubble text={activity?.speech || autoChat.messages.get(agent.id)!.text} position="top" />
-                  ) : null}
-                  <div className="text-center mt-0.5">
-                    {/* Name plate with dept color */}
-                    <div className="inline-flex flex-col items-center rounded-md px-1.5 py-0.5 backdrop-blur-sm"
-                      style={{ background: 'rgba(0,0,0,0.75)', border: `1.5px solid ${deptColor}`, boxShadow: `0 0 6px ${deptColor}44` }}>
-                      <div className="flex items-center gap-0.5">
-                        {isOpus && <span className="text-[6px]" style={{ color: '#fbbf24' }}>★</span>}
-                        <span className="text-[9px] font-bold text-white truncate max-w-[60px] leading-tight">
+                <div key={agent.id}>
+                  {/* 吹き出し・バブルパネル（キャラ上部） */}
+                  {(showBubble || activity?.speech || autoChat.messages.get(agent.id)) && (
+                    <div ref={showBubble ? bubbleAnchorRef : undefined}
+                      className="absolute pointer-events-none"
+                      style={{ left: `${pctL}%`, top: `${speechPctT}%`, transform: 'translate(-50%, -100%)', zIndex: showBubble ? 50 : 25 }}>
+                      {showBubble ? (
+                        <AgentBubblePanel
+                          agent={agent}
+                          onClose={() => setBubbleAgentId(null)}
+                          onShowDetail={() => { setBubbleAgentId(null); onShowDetail?.(agent); }}
+                          anchorRef={bubbleAnchorRef}
+                        />
+                      ) : (activity?.speech || autoChat.messages.get(agent.id)) ? (
+                        <SpeechBubble text={activity?.speech || autoChat.messages.get(agent.id)!.text} position="top" />
+                      ) : null}
+                    </div>
+                  )}
+
+                  {/* 足元ネームプレート（ピル型） */}
+                  <div className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, 0)', zIndex: 18 }}>
+                    <div className="text-center">
+                      <div className="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
+                        style={{
+                          background: 'linear-gradient(180deg, rgba(15,20,35,0.85), rgba(8,12,24,0.9))',
+                          border: `1.5px solid ${deptColor}60`,
+                          boxShadow: `0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)`,
+                        }}>
+                        {/* 部署カラードット */}
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: deptColor, boxShadow: `0 0 4px ${deptColor}` }} />
+                        {isOpus && <span className="text-[6px] text-amber-400">★</span>}
+                        <span className="text-[9px] font-bold text-white/90 truncate max-w-[52px] leading-tight">
                           {agent.name.split(' ')[0]}
                         </span>
                       </div>
-                      <span className="text-[7px] font-bold truncate max-w-[64px] leading-none" style={{ color: deptColor, textShadow: `0 0 4px ${deptColor}88` }}>
-                        {shortTitle}
-                      </span>
+                      {activity && activity.action !== 'idle' && (
+                        <div className="mt-0.5">
+                          <span className={`inline-block text-[7px] px-1.5 py-px rounded-full font-bold
+                            ${activity.action === 'working' ? 'bg-blue-500/30 text-blue-300 border border-blue-400/30' :
+                              activity.action === 'celebrating' ? 'bg-yellow-500/30 text-yellow-300 border border-yellow-400/30' :
+                              activity.action === 'walking' ? 'bg-orange-500/30 text-orange-300 border border-orange-400/30' :
+                              'bg-emerald-500/30 text-emerald-300 border border-emerald-400/30'}`}>
+                            {activity.action === 'working' ? '作業中' : activity.action === 'celebrating' ? '完了!' :
+                              activity.action === 'walking' ? '移動中' : activity.action === 'meeting' ? '会議中' : ''}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    {activity && activity.action !== 'idle' && (
-                      <span className={`inline-block text-[7px] mt-0.5 px-1 py-px rounded-full font-bold
-                        ${activity.action === 'working' ? 'bg-blue-500/40 text-blue-200' :
-                          activity.action === 'celebrating' ? 'bg-yellow-500/40 text-yellow-200' :
-                          activity.action === 'walking' ? 'bg-orange-500/40 text-orange-200' :
-                          'bg-green-500/40 text-green-200'}`}>
-                        {activity.action === 'working' ? '作業中' : activity.action === 'celebrating' ? '完了!' :
-                          activity.action === 'walking' ? '移動中' : activity.action === 'meeting' ? '会議中' : ''}
-                      </span>
-                    )}
                   </div>
                 </div>
               );
             });
           })}
 
-          {/* ── Room Labels ── */}
+          {/* ── Room Labels（RPG風看板） ── */}
           {sortedRooms.map(room => {
-            const labelPos = iso(room.gx + room.w * 0.3, room.gy);
+            const labelPos = iso(room.gx + room.w * 0.35, room.gy);
             const pctL = (labelPos.x / VW) * 100;
-            const pctT = ((labelPos.y - WH - 8) / VH) * 100;
+            const pctT = ((labelPos.y - WH - 6) / VH) * 100;
             const roomAgents = byRoom(room.id);
             const isActive = isLive && activeRooms?.has(room.id);
             return (
               <div key={`label-${room.id}`} className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, -100%)' }}>
-                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold whitespace-nowrap backdrop-blur-sm
-                  ${isActive ? 'bg-indigo-900/70 text-indigo-200 border border-indigo-400/30' : 'bg-slate-900/60 text-white/80'}`}>
-                  <span className="text-xs">{room.icon}</span>
-                  <span>{room.label}</span>
-                  <span className={`text-[8px] ${isActive ? 'text-indigo-300' : 'text-white/40'}`}>{roomAgents.length}名</span>
+                <div className="relative">
+                  {/* 看板本体 */}
+                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-bold whitespace-nowrap`}
+                    style={{
+                      background: isActive
+                        ? 'linear-gradient(180deg, rgba(79,70,229,0.4), rgba(55,48,163,0.5))'
+                        : 'linear-gradient(180deg, rgba(60,50,35,0.85), rgba(40,32,22,0.9))',
+                      border: isActive ? '1.5px solid rgba(129,140,248,0.5)' : '1.5px solid rgba(160,130,80,0.4)',
+                      boxShadow: isActive
+                        ? '0 2px 12px rgba(99,102,241,0.25), inset 0 1px 0 rgba(255,255,255,0.1)'
+                        : '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)',
+                      color: isActive ? '#c7d2fe' : 'rgba(230,210,170,0.9)',
+                    }}>
+                    <span className="text-xs opacity-80">{room.icon}</span>
+                    <span style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>{room.label}</span>
+                    <span className="text-[8px] ml-0.5 opacity-50">{roomAgents.length}名</span>
+                  </div>
+                  {/* 看板の吊り金具 */}
+                  <div className="absolute -top-1 left-3 w-px h-1.5" style={{ background: 'rgba(160,130,80,0.3)' }} />
+                  <div className="absolute -top-1 right-3 w-px h-1.5" style={{ background: 'rgba(160,130,80,0.3)' }} />
                 </div>
               </div>
             );
@@ -824,38 +869,20 @@ export function OfficeFloor({
 
       {/* Bottom-left: Minimap + Zoom controls */}
       <Minimap activeRooms={activeRooms} isLive={isLive} />
-      <div className="absolute bottom-[110px] left-3 z-30 flex flex-col gap-1">
-        <button onClick={() => { setZoom(prev => Math.min(4, prev + 0.15)); setManualZoom(true); }}
-          className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-white/70 text-sm font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">+</button>
-
-        {/* Zoom presets */}
-        {[
-          { label: '2x', value: 2.0 },
-          { label: '1.5', value: 1.5 },
-          { label: '1x', value: 1.0 },
-          { label: '.7', value: 0.7 },
-        ].map(p => (
-          <button key={p.label}
-            onClick={() => {
-              setZoom(p.value);
-              if (p.value === 1) { setManualZoom(false); setPanOffset({ x: 0, y: 0 }); setZoomTarget(null); }
-              else setManualZoom(true);
-            }}
-            className={`w-7 h-7 rounded-md backdrop-blur-md border text-[9px] font-bold cursor-pointer transition-colors flex items-center justify-center
-              ${Math.abs(zoom - p.value) < 0.05
-                ? 'bg-indigo-500/30 border-indigo-400/50 text-indigo-300'
-                : 'bg-slate-900/80 border-white/15 text-white/40 hover:bg-white/10 hover:text-white/70'}`}>
-            {p.label}
-          </button>
-        ))}
-
-        {/* Current zoom display */}
-        <div className="w-7 h-5 rounded-md bg-slate-900/60 text-[8px] text-white/30 flex items-center justify-center font-mono">
+      <div className="absolute bottom-[110px] left-3 z-30 flex flex-col gap-0.5">
+        <button onClick={() => { setZoom(prev => Math.min(4, prev + 0.2)); setManualZoom(true); }}
+          className="w-6 h-6 rounded bg-slate-900/80 backdrop-blur-md border border-white/10 text-white/60 text-xs font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">+</button>
+        <div className="w-6 h-4 rounded bg-slate-900/60 text-[7px] text-white/30 flex items-center justify-center font-mono">
           {Math.round(zoom * 100)}
         </div>
-
-        <button onClick={() => { setZoom(prev => Math.max(0.5, prev - 0.15)); setManualZoom(true); }}
-          className="w-7 h-7 rounded-md bg-slate-900/80 backdrop-blur-md border border-white/15 text-white/70 text-sm font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">-</button>
+        <button onClick={() => { setZoom(prev => Math.max(0.5, prev - 0.2)); setManualZoom(true); }}
+          className="w-6 h-6 rounded bg-slate-900/80 backdrop-blur-md border border-white/10 text-white/60 text-xs font-bold cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">-</button>
+        {zoom !== 1 && (
+          <button onClick={() => { setZoom(1); setManualZoom(false); setPanOffset({ x: 0, y: 0 }); setZoomTarget(null); }}
+            className="w-6 h-6 rounded bg-slate-900/80 backdrop-blur-md border border-white/10 text-[7px] text-white/40 cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-center">
+            1x
+          </button>
+        )}
       </div>
 
       {/* Bottom-right: Quest Log */}
