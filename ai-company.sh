@@ -125,6 +125,7 @@ read_full() {
 
 # ── 計測付き run_agent ───────────────────────────────────────
 # Usage: run_agent <agent_id> <prompt> [model_override] [max_turns_override]
+# 終了時に育成ステータスをログ出力し、失敗理由を分類する
 
 run_agent() {
   local agent_id="$1"
@@ -146,16 +147,58 @@ run_agent() {
   record_agent_start "$agent_id"
   log "🚀 ${agent_name} 開始（${model}, maxTurns=${max_turns}）"
 
+  local agent_log="$LOG_DIR/${TIMESTAMP}_${agent_id}.log"
+  local exit_code=0
   env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p \
     --model "$model" \
     --system-prompt "$(cat "$system_prompt_file")" \
     --max-turns "$max_turns" \
     --dangerously-skip-permissions \
     "$prompt" \
-    2>&1 | tee -a "$LOG_DIR/${TIMESTAMP}_${agent_id}.log"
+    2>&1 | tee -a "$agent_log" || exit_code=$?
 
   record_agent_end "$agent_id"
-  log "✅ ${agent_name} 完了"
+
+  # ── 育成ステータス判定 ──
+  local last_lines
+  last_lines=$(tail -20 "$agent_log" 2>/dev/null || echo "")
+  if echo "$last_lines" | grep -q "Reached max turns"; then
+    log "⚠️  ${agent_name} ターン上限到達（${max_turns}/${max_turns}）→ EXP付与なし ※maxTurns引き上げを検討"
+    return 1
+  elif [ $exit_code -ne 0 ]; then
+    log "❌ ${agent_name} エラー終了（exit=$exit_code）→ EXP付与なし"
+    return 1
+  else
+    log "✅ ${agent_name} 正常完了"
+    return 0
+  fi
+}
+
+# ── タイムアウト付きwait ──────────────────────────────────────
+# Usage: wait_with_timeout <PID> <timeout_sec> <agent_id>
+# タイムアウト時はプロセスをkillし、部分成果物で続行
+
+wait_with_timeout() {
+  local pid="$1"
+  local timeout="$2"
+  local agent_id="${3:-unknown}"
+  local agent_name
+  agent_name=$(get_agent_field "$agent_id" ".icon + \" \" + .name + \" \" + .title" 2>/dev/null || echo "$agent_id")
+  local elapsed=0
+  local interval=5
+
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ $elapsed -ge $timeout ]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      log "⏰ ${agent_name} タイムアウト（${timeout}秒超過）→ EXP付与なし ※応答停滞"
+      return 1
+    fi
+    sleep $interval
+    elapsed=$((elapsed + interval))
+  done
+  wait "$pid"
+  return $?
 }
 
 # ── 非同期レビュー ────────────────────────────────────────────
@@ -304,7 +347,7 @@ if [ "$THEME_WEIGHT" = "medium" ]; then
 
 ※このテーマはシステム開発ではなく、文章作成・調査・分析系のタスクです。
 ※ファイル先頭に ## サマリー セクションを付けること。
-" "sonnet" "5" &
+" "sonnet" "7" &
   PID_CEO=$!
 
   run_agent "marketing" "
@@ -312,10 +355,11 @@ if [ "$THEME_WEIGHT" = "medium" ]; then
 
 テーマに関する市場調査・背景調査を $PROJECT_DIR/marketing-report.md に出力してください。
 ※冒頭に必ず ## サマリー セクション（5行以内の要約）を付けること。
-- 関連するトレンド・動向
+※Web検索は最大3回までに留め、効率よく情報収集すること。
+- 関連するトレンド・動向（主要3点に絞る）
 - ターゲット分析
-- 参考事例・ベストプラクティス
-" "sonnet" "6" &
+- 参考事例・ベストプラクティス（2-3事例）
+" "sonnet" "10" &
   PID_MARKETING=$!
 
   run_agent "rd" "
@@ -323,15 +367,16 @@ if [ "$THEME_WEIGHT" = "medium" ]; then
 
 テーマに対する革新的なアイデアや切り口を $PROJECT_DIR/rd-report.md に出力してください。
 ※冒頭に必ず ## サマリー セクション（上位3案の要約）を付けること。
-- 従来のアプローチを超える方法（最低5案）
+※Web検索は最大2回までに留め、自身の知識を中心に提案すること。
+- 従来のアプローチを超える方法（3案に厳選）
 - 差別化できる切り口
 - 実現可能性と優先度
-" "sonnet" "6" &
+" "sonnet" "10" &
   PID_RD=$!
 
-  wait $PID_CEO && add_exp "ceo" 20 "タスク完了"
-  wait $PID_MARKETING && add_exp "marketing" 20 "タスク完了"
-  wait $PID_RD && add_exp "rd" 20 "タスク完了"
+  wait_with_timeout $PID_CEO 180 "ceo" && add_exp "ceo" 20 "タスク完了"
+  wait_with_timeout $PID_MARKETING 300 "marketing" && add_exp "marketing" 20 "タスク完了"
+  wait_with_timeout $PID_RD 300 "rd" && add_exp "rd" 20 "タスク完了"
   record_phase "MEDIUM_PHASE1" "$PHASE1_START"
 
   # --- PHASE 2: 企画（要件定義）+ 資料作成（成果物）+ 秘書（報告）3並列 ---
@@ -347,13 +392,14 @@ R&Dアイデア: $(extract_summary "$PROJECT_DIR/rd-report.md")
 
 要件定義書を $PROJECT_DIR/requirements.md に出力してください。
 ※冒頭に必ず ## サマリー セクション（10行以内の要約）を付けること。
+※ファイル出力は1回で完了させること（追記・修正の往復を避ける）。
 
 本文に含める内容:
 - 背景・目的
 - 成果物の要件（品質基準・フォーマット等）
 - ターゲット・ペルソナ
 - 制約事項
-" "sonnet" "8" &
+" "sonnet" "10" &
   PID_PLANNER=$!
 
   run_agent "doc-writer" "
@@ -367,11 +413,12 @@ R&Dアイデア: $(extract_summary "$PROJECT_DIR/rd-report.md")
 
 ※成果物はそのまま使える完成度で仕上げること。
 ※報告書にはエグゼクティブサマリー・成果物概要・残課題を含めること。
-" "sonnet" "10" &
+※ファイル出力は1回で完了させること（追記・修正の往復を避ける）。
+" "sonnet" "12" &
   PID_DOC=$!
 
-  wait $PID_PLANNER && add_exp "planner" 20 "タスク完了"
-  wait $PID_DOC && add_exp "doc-writer" 25 "成果物＋報告書完了"
+  wait_with_timeout $PID_PLANNER 300 "planner" && add_exp "planner" 20 "タスク完了"
+  wait_with_timeout $PID_DOC 360 "doc-writer" && add_exp "doc-writer" 25 "成果物＋報告書完了"
 
   # 秘書報告（成果物完成後）
   run_agent "secretary" "
@@ -455,13 +502,15 @@ run_agent "marketing" "
 
 テーマに関する市場調査を実施し、$PROJECT_DIR/marketing-report.md に出力してください。
 ※冒頭に必ず ## サマリー セクション（5行以内の要約）を付けること。
+※Web検索は最大3回までに留め、効率よく情報収集すること。
+※ファイル出力は1回で完了させること（追記・修正の往復を避ける）。
 
 本文に含める内容:
-- 市場トレンド・競合動向
+- 市場トレンド・競合動向（主要3点に絞る）
 - ターゲット顧客分析
 - 差別化ポイントの提案
 - 参入リスクと機会
-" "" "8" &
+" "" "10" &
 PID_MARKETING=$!
 
 run_agent "cs" "
@@ -492,10 +541,10 @@ run_agent "planner" "
 " "" "8" &
 PID_PLANNER_P1=$!
 
-wait $PID_CEO && add_exp "ceo" 20 "タスク完了"
-wait $PID_MARKETING && add_exp "marketing" 20 "タスク完了"
-wait $PID_CS && add_exp "cs" 20 "タスク完了"
-wait $PID_PLANNER_P1 && add_exp "planner" 15 "ペルソナ調査完了"
+wait_with_timeout $PID_CEO 180 "ceo" && add_exp "ceo" 20 "タスク完了"
+wait_with_timeout $PID_MARKETING 300 "marketing" && add_exp "marketing" 20 "タスク完了"
+wait_with_timeout $PID_CS 300 "cs" && add_exp "cs" 20 "タスク完了"
+wait_with_timeout $PID_PLANNER_P1 300 "planner" && add_exp "planner" 15 "ペルソナ調査完了"
 record_phase "PHASE1" "$PHASE1_START"
 
 # ================================================================
@@ -551,12 +600,14 @@ CEOの計画: $(extract_summary "$PROJECT_DIR/plan.json")
 
 テーマに対する破壊的アイデアを $PROJECT_DIR/rd-report.md に出力してください。
 ※冒頭に必ず ## サマリー セクション（実現可能性が高い上位3案の要約）を付けること。
+※Web検索は最大2回までに留め、自身の知識を中心に提案すること。
+※ファイル出力は1回で完了させること（追記・修正の往復を避ける）。
 
-- 従来のアプローチを10倍良くする方法（最低5案）
+- 従来のアプローチを10倍良くする方法（3案に厳選）
 - 競合が思いつかない差別化アイデア
 - 技術トレンドを活用した革新的機能
 - 実現可能性と優先度のマトリクス
-" "" "8" &
+" "" "10" &
 PID_RD=$!
 
 # 動的モデル切替: テーマの複雑さに応じてarchitectのモデルを選択
@@ -602,11 +653,11 @@ HTML + Tailwind CSS で実際に表示できる形式にすること。
 " "" "8" &
 PID_DESIGN=$!
 
-wait $PID_REVIEW1 && add_exp "chief-secretary" 20 "キックオフレビュー完了"
-wait $PID_PLANNER && add_exp "planner" 20 "タスク完了"
-wait $PID_RD && add_exp "rd" 20 "タスク完了"
-wait $PID_ARCH && add_exp "architect" 30 "設計完了"
-wait $PID_DESIGN && add_exp "ui-designer" 20 "モックアップ完了"
+wait_with_timeout $PID_REVIEW1 180 "chief-secretary" && add_exp "chief-secretary" 20 "キックオフレビュー完了"
+wait_with_timeout $PID_PLANNER 300 "planner" && add_exp "planner" 20 "タスク完了"
+wait_with_timeout $PID_RD 300 "rd" && add_exp "rd" 20 "タスク完了"
+wait_with_timeout $PID_ARCH 420 "architect" && add_exp "architect" 30 "設計完了"
+wait_with_timeout $PID_DESIGN 300 "ui-designer" && add_exp "ui-designer" 20 "モックアップ完了"
 record_phase "PHASE2" "$PHASE2_START"
 
 # ================================================================
@@ -689,11 +740,11 @@ run_agent "doc-writer" "
 " "" "10" &
 PID_DOC=$!
 
-wait $PID_REVIEW2 && add_exp "chief-secretary" 15 "要件設計レビュー完了"
-wait $PID_DEV && add_exp "developer" 20 "タスク完了"
-wait $PID_CS_FINAL && add_exp "cs" 20 "タスク完了"
-wait $PID_HR && add_exp "hr" 20 "タスク完了"
-wait $PID_DOC && add_exp "doc-writer" 20 "報告書完了"
+wait_with_timeout $PID_REVIEW2 300 "chief-secretary" && add_exp "chief-secretary" 15 "要件設計レビュー完了"
+wait_with_timeout $PID_DEV 600 "developer" && add_exp "developer" 20 "タスク完了"
+wait_with_timeout $PID_CS_FINAL 300 "cs" && add_exp "cs" 20 "タスク完了"
+wait_with_timeout $PID_HR 300 "hr" && add_exp "hr" 20 "タスク完了"
+wait_with_timeout $PID_DOC 360 "doc-writer" && add_exp "doc-writer" 20 "報告書完了"
 
 # QAは実装完了後に実行（コードが必要なため）
 log ""
@@ -752,9 +803,9 @@ run_agent "secretary" "
 " "" "8" &
 PID_SEC=$!
 
-wait $PID_QA && add_exp "qa-reviewer" 20 "タスク完了"
-wait $PID_CS_REPORT && add_exp "chief-secretary" 30 "最終サマリー作成"
-wait $PID_SEC && add_exp "secretary" 20 "タスク完了"
+wait_with_timeout $PID_QA 360 "qa-reviewer" && add_exp "qa-reviewer" 20 "タスク完了"
+wait_with_timeout $PID_CS_REPORT 300 "chief-secretary" && add_exp "chief-secretary" 30 "最終サマリー作成"
+wait_with_timeout $PID_SEC 300 "secretary" && add_exp "secretary" 20 "タスク完了"
 record_phase "PHASE3" "$PHASE3_START"
 
 # ── プロジェクト完了 ──
