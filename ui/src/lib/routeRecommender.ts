@@ -122,7 +122,7 @@ export function updateExecutionResult(id: string, actualSec: number, status: 'do
 }
 
 function getRouteStats(routeType: RouteType): { runCount: number; avgSec: number | null; successRate: number | null } {
-  const stats = loadStats().filter(s => s.routeType === routeType && s.actualSec !== null);
+  const stats = loadStats().filter(s => s.routeType === routeType && s.actualSec !== null && s.status === 'done');
   if (stats.length === 0) return { runCount: 0, avgSec: null, successRate: null };
 
   const recent = stats.slice(0, 10);

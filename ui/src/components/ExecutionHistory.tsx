@@ -115,7 +115,7 @@ function OverallStats({ records, theme }: { records: ExecutionRecord[]; theme: P
     const success = records.filter(r => r.status === 'done').length;
     const failed = records.filter(r => r.status === 'error').length;
     const totalFiles = records.reduce((s, r) => s + r.files.length, 0);
-    const durations = records.filter(r => r.durationSec != null).map(r => r.durationSec!);
+    const durations = records.filter(r => r.durationSec != null && r.status === 'done').map(r => r.durationSec!);
     const avgDuration = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : null;
     const totalDuration = durations.reduce((a, b) => a + b, 0);
     const successRate = total > 0 ? Math.round((success / total) * 100) : 0;
