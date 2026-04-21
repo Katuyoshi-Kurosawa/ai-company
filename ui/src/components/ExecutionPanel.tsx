@@ -210,7 +210,7 @@ function extractThoughts(lines: LogLine[], agents: Agent[]): {
         currentAgent = {
           id: agent?.id ?? null,
           name: agent ? agent.name : fullName,
-          icon: agent?.visual?.icon ?? '🤖',
+          icon: agent?.icon ?? '🤖',
         };
       }
       continue;

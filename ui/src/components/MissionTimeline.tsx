@@ -14,14 +14,6 @@ function formatTime(s: number): string {
   return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
-function dotColor(status: PhaseStatus): string {
-  switch (status) {
-    case 'done': return 'bg-emerald-400';
-    case 'active': return 'bg-indigo-400 animate-pulse';
-    default: return 'bg-white/20';
-  }
-}
-
 function lineColor(status: PhaseStatus): string {
   switch (status) {
     case 'done': return 'bg-emerald-400/50';

@@ -159,7 +159,7 @@ export function useMissionProgress(
 
     // フェーズ状態判定
     let currentPhaseIndex = -1;
-    const phases: PhaseStep[] = phaseDefs.map((def, i) => {
+    const phases: PhaseStep[] = phaseDefs.map((def) => {
       const keys = phaseKeys[def.id] || [];
       const found = keys.some(k => joined.includes(k));
       // フェーズキーの最初の出現タイムスタンプを取得
