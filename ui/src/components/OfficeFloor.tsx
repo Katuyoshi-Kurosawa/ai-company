@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import type { Agent, RoomId, AgentStats } from '../types';
 import type { AgentActivity } from '../hooks/useOfficeActivity';
 import { PixelCharacter } from './PixelCharacter';
@@ -253,28 +254,60 @@ function StatBar({ label, value, color }: { label: string; value: number; color:
   );
 }
 
-function AgentBubblePanel({ agent, onClose, onShowDetail }: {
-  agent: Agent; onClose: () => void; onShowDetail: () => void;
+function AgentBubblePanel({ agent, onClose, onShowDetail, anchorRef }: {
+  agent: Agent; onClose: () => void; onShowDetail: () => void; anchorRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const statColors = ['#ef4444', '#3b82f6', '#eab308', '#a855f7', '#22c55e'];
   const panelRef = useRef<HTMLDivElement>(null);
-  const [adjust, setAdjust] = useState({ x: 0, y: 0 });
+  const [pos, setPos] = useState<{ x: number; y: number; showBelow: boolean }>({ x: 0, y: 0, showBelow: false });
 
-  // パネルが画面外にはみ出す場合、位置を自動調整
+  // アンカー要素の画面座標からパネル位置を計算
   useEffect(() => {
-    const el = panelRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    let dx = 0, dy = 0;
-    if (rect.left < 8) dx = 8 - rect.left;
-    if (rect.right > window.innerWidth - 8) dx = window.innerWidth - 8 - rect.right;
-    if (rect.top < 8) dy = 8 - rect.top;
-    if (dx !== 0 || dy !== 0) setAdjust({ x: dx, y: dy });
-  }, []);
+    const anchor = anchorRef.current;
+    const panel = panelRef.current;
+    if (!anchor || !panel) return;
 
-  return (
-    <div ref={panelRef} className="absolute z-50 pointer-events-auto"
-      style={{ bottom: '100%', left: '50%', transform: `translate(calc(-50% + ${adjust.x}px), ${adjust.y}px)`, marginBottom: 8 }}>
+    const compute = () => {
+      const ar = anchor.getBoundingClientRect();
+      const pr = panel.getBoundingClientRect();
+      const anchorCx = ar.left + ar.width / 2;
+      const gap = 8;
+
+      // 上に十分なスペースがあるか
+      const showBelow = ar.top - pr.height - gap < 8;
+      let x = anchorCx - pr.width / 2;
+      let y = showBelow ? ar.bottom + gap : ar.top - pr.height - gap;
+
+      // 左右クランプ
+      if (x < 8) x = 8;
+      if (x + pr.width > window.innerWidth - 8) x = window.innerWidth - 8 - pr.width;
+      // 上下クランプ
+      if (y < 8) y = 8;
+      if (y + pr.height > window.innerHeight - 8) y = window.innerHeight - 8 - pr.height;
+
+      setPos({ x, y, showBelow });
+    };
+
+    compute();
+    // スクロール・リサイズ時に再計算
+    window.addEventListener('scroll', compute, true);
+    window.addEventListener('resize', compute);
+    return () => { window.removeEventListener('scroll', compute, true); window.removeEventListener('resize', compute); };
+  }, [anchorRef]);
+
+  // 矢印のX位置（アンカー中央に合わせる）
+  const arrowX = (() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return '50%';
+    const ar = anchor.getBoundingClientRect();
+    const anchorCx = ar.left + ar.width / 2;
+    const offset = anchorCx - pos.x;
+    return `${Math.max(12, Math.min(offset, 208))}px`;
+  })();
+
+  return createPortal(
+    <div ref={panelRef} className="fixed z-[9999] pointer-events-auto"
+      style={{ left: pos.x, top: pos.y }}>
       <div className="relative bg-slate-900/95 backdrop-blur-md border border-white/20 rounded-xl p-3 shadow-2xl min-w-[220px]"
         style={{ boxShadow: '0 0 20px rgba(99,102,241,0.2)' }}>
         {/* Close button */}
@@ -329,10 +362,11 @@ function AgentBubblePanel({ agent, onClose, onShowDetail }: {
         </button>
 
         {/* Bubble arrow */}
-        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-slate-900/95 border-r border-b border-white/20"
-          style={{ marginLeft: -adjust.x }} />
+        <div className={`absolute w-4 h-4 rotate-45 bg-slate-900/95 border-white/20 ${pos.showBelow ? '-top-2 border-l border-t' : '-bottom-2 border-r border-b'}`}
+          style={{ left: arrowX, transform: 'translateX(-50%) rotate(45deg)' }} />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -481,6 +515,7 @@ export function OfficeFloor({
   executing, questItems, commandLabel, elapsed, onShowDetail, missionTimeline,
 }: Props) {
   const [bubbleAgentId, setBubbleAgentId] = useState<string | null>(null);
+  const bubbleAnchorRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [zoomTarget, setZoomTarget] = useState<{ x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -709,15 +744,14 @@ export function OfficeFloor({
               const isOpus = agent.model === 'opus';
               const shortTitle = agent.title.replace(/部長$/, '').replace(/CEO/, 'CEO');
               return (
-                <div key={agent.id} className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, -100%)', zIndex: showBubble ? 50 : 20 }}>
+                <div key={agent.id} ref={showBubble ? bubbleAnchorRef : undefined} className="absolute pointer-events-none" style={{ left: `${pctL}%`, top: `${pctT}%`, transform: 'translate(-50%, -100%)', zIndex: showBubble ? 50 : 20 }}>
                   {showBubble ? (
-                    <div className="pointer-events-auto">
-                      <AgentBubblePanel
-                        agent={agent}
-                        onClose={() => setBubbleAgentId(null)}
-                        onShowDetail={() => { setBubbleAgentId(null); onShowDetail?.(agent); }}
-                      />
-                    </div>
+                    <AgentBubblePanel
+                      agent={agent}
+                      onClose={() => setBubbleAgentId(null)}
+                      onShowDetail={() => { setBubbleAgentId(null); onShowDetail?.(agent); }}
+                      anchorRef={bubbleAnchorRef}
+                    />
                   ) : (activity?.speech || autoChat.messages.get(agent.id)) ? (
                     <SpeechBubble text={activity?.speech || autoChat.messages.get(agent.id)!.text} position="top" />
                   ) : null}
