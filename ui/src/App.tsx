@@ -53,6 +53,22 @@ export default function App() {
   const isLive = isRunning; // オフィスLIVE表示は実際の実行状態に連動（executingはパネル表示用）
   const officeActivity = useOfficeActivity(relay.lines, isLive);
   const outputDir = useMemo(() => parseLogLines(relay.lines).outputDir, [relay.lines]);
+  // 現在のアクティビティ（ヘッダーインジケーター用）
+  const currentActivity = useMemo(() => {
+    if (!isRunning || relay.lines.length === 0) return undefined;
+    // 最新のエージェント開始/フェーズ行を逆順で探す
+    for (let i = relay.lines.length - 1; i >= Math.max(0, relay.lines.length - 30); i--) {
+      const txt = relay.lines[i].text;
+      if (txt.includes('🚀') && txt.includes('開始')) {
+        const match = txt.match(/🚀\s*(.+?)\s*開始/);
+        if (match) return `${match[1].trim()} が作業中`;
+      }
+      if (txt.includes('━━━')) {
+        return txt.replace(/[━\[\]\d:]/g, '').trim();
+      }
+    }
+    return undefined;
+  }, [isRunning, relay.lines.length]);
 
   // ミッション進捗解析
   const participatingAgentIds = useMemo(() => {
@@ -208,6 +224,7 @@ export default function App() {
               status={relay.status}
               elapsed={relay.elapsed}
               onClick={() => setView('command')}
+              activity={currentActivity}
             />
           )}
 

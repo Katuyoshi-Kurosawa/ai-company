@@ -50,11 +50,125 @@ function formatElapsed(s: number): string {
   return m > 0 ? `${m}:${String(sec).padStart(2, '0')}` : `0:${String(sec).padStart(2, '0')}`;
 }
 
+// ログから現在アクティブなエージェントと最新アクティビティを検出
+function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
+  activeAgents: { id: string; name: string; status: 'running' | 'done' | 'warning' | 'error' }[];
+  currentActivity: string;
+  latestAgent: string | null;
+} {
+  const agentStates = new Map<string, 'running' | 'done' | 'warning' | 'error'>();
+  let currentActivity = '準備中...';
+  let latestAgent: string | null = null;
+
+  for (const line of lines) {
+    const txt = line.text;
+
+    // エージェント開始検出
+    if (txt.includes('🚀') && txt.includes('開始')) {
+      const match = txt.match(/🚀\s*(.+?)\s*開始/);
+      if (match) {
+        const name = match[1].trim();
+        // エージェントIDを名前からマッチ
+        const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
+        const key = agent?.id ?? name;
+        agentStates.set(key, 'running');
+        latestAgent = key;
+        currentActivity = `${name} が作業中...`;
+      }
+    }
+
+    // エージェント正常完了
+    if (txt.includes('✅') && txt.includes('正常完了')) {
+      const match = txt.match(/✅\s*(.+?)\s*正常完了/);
+      if (match) {
+        const name = match[1].trim();
+        const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
+        const key = agent?.id ?? name;
+        agentStates.set(key, 'done');
+      }
+    }
+
+    // ターン上限
+    if (txt.includes('⚠️') && txt.includes('ターン上限')) {
+      const match = txt.match(/⚠️\s*(.+?)\s*ターン上限/);
+      if (match) {
+        const name = match[1].trim();
+        const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
+        const key = agent?.id ?? name;
+        agentStates.set(key, 'warning');
+      }
+    }
+
+    // タイムアウト
+    if (txt.includes('⏰') && txt.includes('タイムアウト')) {
+      const match = txt.match(/⏰\s*(.+?)\s*タイムアウト/);
+      if (match) {
+        const name = match[1].trim();
+        const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
+        const key = agent?.id ?? name;
+        agentStates.set(key, 'warning');
+      }
+    }
+
+    // エラー
+    if (txt.includes('❌') && txt.includes('エ���ー終了')) {
+      const match = txt.match(/❌\s*(.+?)\s*エラー終了/);
+      if (match) {
+        const name = match[1].trim();
+        const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
+        const key = agent?.id ?? name;
+        agentStates.set(key, 'error');
+      }
+    }
+
+    // フェーズ進行
+    if (txt.includes('━━━') || txt.includes('PHASE')) {
+      const clean = txt.replace(/[━\[\]]/g, '').replace(/\[[\d:]+\]/, '').trim();
+      if (clean) currentActivity = clean;
+    }
+
+    // EXP付与（タスク完了のサイン）
+    if (txt.includes('💫') && txt.includes('EXP')) {
+      // latest activity update
+    }
+
+    // レビュー・完了
+    if (txt.includes('パフォーマンスレビュー')) {
+      currentActivity = 'パフォーマンスレビュー生成中...';
+    }
+    if (txt.includes('全工程終了') || txt.includes('🎉')) {
+      currentActivity = '全工程完了!';
+    }
+  }
+
+  // 現在runningなエージェントがいれば最新のアクティビティを更新
+  const running = [...agentStates.entries()].filter(([, s]) => s === 'running');
+  if (running.length > 0) {
+    const names = running.map(([key]) => {
+      const agent = agents.find(a => a.id === key);
+      return agent ? agent.name.split(' ')[0] : key;
+    });
+    if (names.length <= 3) {
+      currentActivity = `${names.join('、')} が作業中...`;
+    } else {
+      currentActivity = `${names.slice(0, 2).join('、')} 他${names.length - 2}名が作業中...`;
+    }
+  }
+
+  const activeAgents = [...agentStates.entries()].map(([id, status]) => {
+    const agent = agents.find(a => a.id === id);
+    return { id, name: agent?.name ?? id, status };
+  });
+
+  return { activeAgents, currentActivity, latestAgent };
+}
+
 // コンパクト版: ヘッダーに埋め込むインジケーター
-export function ExecutionIndicator({ status, elapsed, onClick }: {
+export function ExecutionIndicator({ status, elapsed, onClick, activity }: {
   status: JobStatus;
   elapsed: number;
   onClick: () => void;
+  activity?: string;
 }) {
   if (status === 'idle') return null;
   const isRunning = status === 'running' || status === 'connecting';
@@ -67,11 +181,18 @@ export function ExecutionIndicator({ status, elapsed, onClick }: {
         background: isRunning ? 'rgba(99,102,241,0.15)' : isDone ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
         border: `1px solid ${isRunning ? 'rgba(99,102,241,0.3)' : isDone ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
       }}>
-      <div className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-indigo-400 animate-pulse' : isDone ? 'bg-green-400' : 'bg-red-400'}`} />
-      <span className="text-xs font-bold truncate max-w-32">
-        {isRunning ? '実行中' : isDone ? '完了' : 'エラー'}
-      </span>
-      <span className="text-[10px] opacity-60 font-mono">{formatElapsed(elapsed)}</span>
+      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isRunning ? 'bg-indigo-400 animate-pulse' : isDone ? 'bg-green-400' : 'bg-red-400'}`} />
+      <div className="flex flex-col items-start min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-bold">
+            {isRunning ? '実行中' : isDone ? '完了' : 'エラー'}
+          </span>
+          <span className="text-[10px] opacity-60 font-mono">{formatElapsed(elapsed)}</span>
+        </div>
+        {isRunning && activity && (
+          <span className="text-[9px] text-indigo-300/70 truncate max-w-40">{activity}</span>
+        )}
+      </div>
     </button>
   );
 }
@@ -98,16 +219,15 @@ function fileIcon(name: string): string {
 export function ExecutionPanel({ agents, status, lines, elapsed, error, commandLabel, outputDir, onClose, onAbort, stalled }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [panelTab, setPanelTab] = useState<'none' | 'log' | 'files'>('none');
-  const [activeAgentIdx, setActiveAgentIdx] = useState(0);
   const [files, setFiles] = useState<{ name: string; size: number }[]>([]);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const { phase, progress } = detectPhase(lines);
+  const liveStatus = detectLiveStatus(lines, agents);
 
   const isDone = status === 'done';
   const isError = status === 'error';
   const isRunning = status === 'running' || status === 'connecting';
-  const activeAgent = agents[activeAgentIdx] ?? null;
 
   // 完了時にファイル一覧を取得
   useEffect(() => {
@@ -126,14 +246,6 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
       } catch { /* ignore */ }
     })();
   }, [isDone, outputDir]);
-
-  useEffect(() => {
-    if (status !== 'running') return;
-    const iv = setInterval(() => {
-      setActiveAgentIdx(prev => (prev + 1) % Math.min(agents.length, 13));
-    }, 2000);
-    return () => clearInterval(iv);
-  }, [status, agents.length]);
 
   useEffect(() => {
     if (panelTab === 'log') logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -180,7 +292,15 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
             <span className="text-sm font-bold text-white truncate">{commandLabel}</span>
             <span className="text-xs text-white/40 font-mono">{formatElapsed(elapsed)}</span>
           </div>
-          <div className="text-xs text-white/50 mt-0.5">{phase}</div>
+          <div className="text-xs text-white/50 mt-0.5 flex items-center gap-2">
+            <span>{phase}</span>
+            {isRunning && liveStatus.currentActivity !== phase && (
+              <>
+                <span className="text-white/20">|</span>
+                <span className="text-indigo-300/80 animate-pulse truncate">{liveStatus.currentActivity}</span>
+              </>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {/* 成果物ボタン（完了時のみ） */}
@@ -251,21 +371,58 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
       {/* Agent avatars row */}
       <div className="px-4 pb-3 flex items-center gap-1 overflow-x-auto">
         {agents.slice(0, 13).map(a => {
-          const isActive = activeAgent?.id === a.id;
+          const liveAgent = liveStatus.activeAgents.find(la => la.id === a.id);
+          const agentStatus = liveAgent?.status;
+          const isActive = agentStatus === 'running';
+          const isDoneAgent = agentStatus === 'done';
+          const isWarning = agentStatus === 'warning';
+          const isErrorAgent = agentStatus === 'error';
+          const hasParticipated = !!agentStatus;
+
           return (
             <div key={a.id}
               className={`flex flex-col items-center shrink-0 transition-all duration-500 px-1
-                ${isActive && isRunning ? 'scale-110 opacity-100' : 'opacity-30 scale-90'}`}>
-              <div className={isActive && isRunning ? 'animate-bounce' : ''}>
-                <PixelCharacter visual={a.visual} size="sm" active={true} />
+                ${isActive ? 'scale-110 opacity-100' : hasParticipated ? 'opacity-80 scale-95' : 'opacity-20 scale-90'}`}>
+              <div className="relative">
+                <div className={isActive ? 'animate-bounce' : ''}>
+                  <PixelCharacter visual={a.visual} size="sm" active={true} />
+                </div>
+                {/* ステータスインジケーター */}
+                {isDoneAgent && (
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full flex items-center justify-center text-[7px] text-white font-bold shadow-lg shadow-emerald-500/50">✓</div>
+                )}
+                {isWarning && (
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-amber-500 rounded-full flex items-center justify-center text-[7px] text-white font-bold shadow-lg shadow-amber-500/50">!</div>
+                )}
+                {isErrorAgent && (
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center text-[7px] text-white font-bold shadow-lg shadow-red-500/50">✕</div>
+                )}
+                {isActive && (
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-indigo-500 rounded-full animate-pulse shadow-lg shadow-indigo-500/50" />
+                )}
               </div>
-              <span className="text-[8px] text-white/50 mt-0.5 truncate w-8 text-center">{a.name.split(' ')[0]}</span>
+              <span className={`text-[8px] mt-0.5 truncate w-10 text-center ${
+                isActive ? 'text-indigo-300 font-bold' : isDoneAgent ? 'text-emerald-400/60' : 'text-white/40'
+              }`}>{a.name.split(' ')[0]}</span>
             </div>
           );
         })}
 
         {/* Status message on the right */}
         <div className="ml-auto pl-4 shrink-0">
+          {isRunning && liveStatus.activeAgents.length > 0 && (
+            <div className="text-right">
+              <div className="text-[10px] text-indigo-300 font-bold">
+                {liveStatus.activeAgents.filter(a => a.status === 'running').length}名 作業中
+              </div>
+              <div className="text-[9px] text-white/40">
+                {liveStatus.activeAgents.filter(a => a.status === 'done').length}名 完了
+                {liveStatus.activeAgents.filter(a => a.status === 'warning').length > 0 && (
+                  <span className="text-amber-400"> / {liveStatus.activeAgents.filter(a => a.status === 'warning').length}名 警告</span>
+                )}
+              </div>
+            </div>
+          )}
           {isDone && (
             <div className="flex items-center gap-2 text-green-400">
               <span className="text-2xl">🏆</span>
