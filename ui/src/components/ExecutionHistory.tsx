@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { ExecutionRecord, ExecutionAction } from '../hooks/useExecutionHistory';
+import type { ExecutionRecord, ExecutionAction, ReviewData, ReviewSuggestion } from '../hooks/useExecutionHistory';
 import { FilePreviewModal } from './FilePreviewModal';
 
 interface Props {
@@ -214,12 +214,179 @@ function RecordCard({ record, selected, onClick, theme }: {
   );
 }
 
+/* ── Grade badge ── */
+function GradeBadge({ grade }: { grade: string }) {
+  const styles: Record<string, string> = {
+    S: 'bg-gradient-to-r from-yellow-400 to-amber-500 text-black shadow-lg shadow-yellow-500/30',
+    A: 'bg-gradient-to-r from-emerald-400 to-green-500 text-black shadow-lg shadow-emerald-500/30',
+    B: 'bg-gradient-to-r from-blue-400 to-indigo-500 text-white shadow-lg shadow-blue-500/30',
+    C: 'bg-gradient-to-r from-orange-400 to-amber-500 text-black shadow-lg shadow-orange-500/30',
+    D: 'bg-gradient-to-r from-red-400 to-rose-500 text-white shadow-lg shadow-red-500/30',
+  };
+  return (
+    <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-black ${styles[grade] ?? styles.D}`}>
+      {grade}
+    </div>
+  );
+}
+
+/* ── Agent performance bar ── */
+function AgentBar({ agent, maxDuration, theme }: {
+  agent: { id: string; name: string; status: string; model: string; maxTurns: number; duration: number };
+  maxDuration: number;
+  theme: Props['theme'];
+}) {
+  const statusColors: Record<string, { bar: string; badge: string; label: string }> = {
+    ok: { bar: 'bg-emerald-500/60', badge: 'bg-emerald-500/20 text-emerald-400', label: '完了' },
+    maxturns: { bar: 'bg-amber-500/60', badge: 'bg-amber-500/20 text-amber-400', label: 'ターン上限' },
+    timeout: { bar: 'bg-orange-500/60', badge: 'bg-orange-500/20 text-orange-400', label: 'タイムアウト' },
+    error: { bar: 'bg-red-500/60', badge: 'bg-red-500/20 text-red-400', label: 'エラー' },
+  };
+  const s = statusColors[agent.status] ?? statusColors.error;
+  const widthPct = maxDuration > 0 ? Math.min(100, (agent.duration / maxDuration) * 100) : 0;
+  const displayName = agent.name.replace(/[🚀🍸👔💼📊🔬⚡🎯🛡️✨📝🎨💡🗡️]/g, '').trim().split(' ').slice(0, 2).join(' ');
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-[10px]">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-bold truncate">{displayName}</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium ${s.badge}`}>{s.label}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0" style={{ color: theme.muted }}>
+          <span className="font-mono">{formatDuration(agent.duration)}</span>
+          <span className="text-[9px] opacity-60">{agent.model}</span>
+        </div>
+      </div>
+      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${s.bar} transition-all`} style={{ width: `${widthPct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── Suggestion card ── */
+function SuggestionCard({ suggestion, theme }: { suggestion: ReviewSuggestion; theme: Props['theme'] }) {
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const severityStyles: Record<string, string> = {
+    success: 'border-emerald-500/30 bg-emerald-500/5',
+    info: 'border-blue-500/30 bg-blue-500/5',
+    warning: 'border-amber-500/30 bg-amber-500/5',
+    critical: 'border-red-500/30 bg-red-500/5',
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(suggestion.prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className={`rounded-lg border p-3 ${severityStyles[suggestion.severity] ?? severityStyles.info}`}>
+      <div className="flex items-start gap-2">
+        <span className="text-lg shrink-0">{suggestion.icon}</span>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-bold mb-0.5">{suggestion.title}</div>
+          <div className="text-[11px] leading-relaxed" style={{ color: theme.muted }}>{suggestion.desc}</div>
+          {suggestion.prompt && (
+            <div className="mt-2">
+              <button
+                onClick={() => setShowPrompt(!showPrompt)}
+                className="text-[10px] px-2 py-1 bg-white/10 hover:bg-white/15 rounded cursor-pointer transition-colors font-medium inline-flex items-center gap-1">
+                {showPrompt ? '▼' : '▶'} 改善プロンプト
+              </button>
+              {showPrompt && (
+                <div className="mt-2 relative">
+                  <code className="block bg-black/40 text-green-400 text-[11px] px-3 py-2.5 rounded-lg font-mono break-all leading-relaxed">
+                    {suggestion.prompt}
+                  </code>
+                  <button
+                    onClick={handleCopy}
+                    className="absolute top-1.5 right-1.5 text-[9px] px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded cursor-pointer transition-colors">
+                    {copied ? '✓ コピー済' : '📋 コピー'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Review panel ── */
+function ReviewPanel({ review, theme }: { review: ReviewData; theme: Props['theme'] }) {
+  const maxDuration = Math.max(...review.agents.map(a => a.duration), 1);
+
+  return (
+    <div className="space-y-5">
+      {/* Header with grade */}
+      <div className="flex items-center gap-4">
+        <GradeBadge grade={review.grade} />
+        <div>
+          <div className="text-lg font-bold">パフォーマンスレビュー</div>
+          <div className="text-xs" style={{ color: theme.muted }}>
+            成功率 {review.successRate}% / {review.total}エージェント / {formatDuration(review.totalDuration)}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-5 gap-2">
+        {[
+          { label: '成功', value: review.success, color: 'text-emerald-400' },
+          { label: 'ターン上限', value: review.maxturns, color: review.maxturns > 0 ? 'text-amber-400' : 'text-white/30' },
+          { label: 'タイムアウト', value: review.timeouts, color: review.timeouts > 0 ? 'text-orange-400' : 'text-white/30' },
+          { label: 'エラー', value: review.errors, color: review.errors > 0 ? 'text-red-400' : 'text-white/30' },
+          { label: '合計', value: review.total, color: 'text-white' },
+        ].map(s => (
+          <div key={s.label} className="p-2 rounded-lg bg-white/5 text-center">
+            <div className={`text-lg font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-[9px]" style={{ color: theme.muted }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Agent performance */}
+      {review.agents.length > 0 && (
+        <div>
+          <h4 className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: theme.muted }}>
+            エージェント別パフォーマンス
+          </h4>
+          <div className="space-y-2.5">
+            {review.agents.map(a => (
+              <AgentBar key={a.id} agent={a} maxDuration={maxDuration} theme={theme} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Improvement suggestions */}
+      {review.suggestions.length > 0 && (
+        <div>
+          <h4 className="text-[10px] font-bold uppercase tracking-wider mb-3" style={{ color: theme.muted }}>
+            改善提案
+          </h4>
+          <div className="space-y-2">
+            {review.suggestions.map((s, i) => (
+              <SuggestionCard key={i} suggestion={s} theme={theme} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Detail panel ── */
 function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
   record: ExecutionRecord; onDelete: () => void; onRetry?: () => void; onPreview: (path: string) => void; theme: Props['theme'];
 }) {
   const r = record;
-  const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'files'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'files' | 'review'>(r.review ? 'review' : 'overview');
 
   const agentEvents = r.actions.filter(a => a.type === 'agent');
   const agents = useMemo(() => {
@@ -288,6 +455,7 @@ function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
       {/* Tabs */}
       <div className="flex gap-0 border-b" style={{ borderColor: theme.border }}>
         {[
+          ...(r.review ? [{ id: 'review' as const, label: 'レビュー', icon: '🏆' }] : []),
           { id: 'overview' as const, label: '概要', icon: '📊' },
           { id: 'timeline' as const, label: 'タイムライン', icon: '📋' },
           { id: 'files' as const, label: `ファイル (${r.files.length})`, icon: '📄' },
@@ -303,6 +471,10 @@ function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === 'review' && r.review && (
+          <ReviewPanel review={r.review} theme={theme} />
+        )}
+
         {activeTab === 'overview' && (
           <div className="space-y-4">
             {/* Error */}

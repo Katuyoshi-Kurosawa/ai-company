@@ -9,6 +9,37 @@ export interface ExecutionAction {
   detail?: string;
 }
 
+export interface ReviewAgentResult {
+  id: string;
+  name: string;
+  status: 'ok' | 'maxturns' | 'timeout' | 'error';
+  model: string;
+  maxTurns: number;
+  duration: number;
+}
+
+export interface ReviewSuggestion {
+  type: string;
+  icon: string;
+  severity: 'success' | 'info' | 'warning' | 'critical';
+  title: string;
+  desc: string;
+  prompt: string;
+}
+
+export interface ReviewData {
+  agents: ReviewAgentResult[];
+  total: number;
+  success: number;
+  maxturns: number;
+  timeouts: number;
+  errors: number;
+  successRate: number;
+  totalDuration: number;
+  grade: string;
+  suggestions: ReviewSuggestion[];
+}
+
 export interface ExecutionRecord {
   id: string;
   type: 'company' | 'mtg' | 'escalation';
@@ -24,6 +55,7 @@ export interface ExecutionRecord {
   logLineCount: number;
   slackSent: boolean;
   errorMessage?: string;
+  review?: ReviewData;
 }
 
 function load(): ExecutionRecord[] {
@@ -39,21 +71,32 @@ function save(records: ExecutionRecord[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records.slice(0, 100)));
 }
 
-// ログ行からアクション・ファイル・Slack送信を解析
+// ログ行からアクション・ファイル・Slack送信・レビューを解析
 export function parseLogLines(lines: { text: string; time: number }[]): {
   actions: ExecutionAction[];
   files: string[];
   slackSent: boolean;
   outputDir: string | null;
+  review: ReviewData | null;
 } {
   const actions: ExecutionAction[] = [];
   const files: string[] = [];
   let slackSent = false;
   let outputDir: string | null = null;
+  let review: ReviewData | null = null;
 
   for (const line of lines) {
     const t = new Date(line.time).toISOString();
     const txt = line.text;
+
+    // レビューJSON検出
+    if (txt.includes('__REVIEW_JSON__:')) {
+      try {
+        const jsonStr = txt.substring(txt.indexOf('__REVIEW_JSON__:') + '__REVIEW_JSON__:'.length);
+        review = JSON.parse(jsonStr) as ReviewData;
+      } catch { /* ignore parse errors */ }
+      continue;
+    }
 
     // 出力ディレクトリ検出
     const dirMatch = txt.match(/出力先:\s*(\S+)/);
@@ -109,7 +152,7 @@ export function parseLogLines(lines: { text: string; time: number }[]): {
     }
   }
 
-  return { actions, files, slackSent, outputDir };
+  return { actions, files, slackSent, outputDir, review };
 }
 
 export function useExecutionHistory() {
@@ -138,7 +181,7 @@ export function useExecutionHistory() {
     setRecords(prev => {
       const next = prev.map(r => {
         if (r.id !== id) return r;
-        const { actions, files, slackSent, outputDir } = parseLogLines(lines);
+        const { actions, files, slackSent, outputDir, review } = parseLogLines(lines);
         const finishedAt = new Date().toISOString();
         const durationSec = Math.round((Date.now() - new Date(r.startedAt).getTime()) / 1000);
         return {
@@ -152,6 +195,7 @@ export function useExecutionHistory() {
           logLineCount: lines.length,
           slackSent: r.slackSent || slackSent,
           errorMessage,
+          review: review ?? undefined,
         };
       });
       save(next);

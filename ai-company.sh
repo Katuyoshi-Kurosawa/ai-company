@@ -39,6 +39,10 @@ PROJECT_START=$(date +%s)
 
 mkdir -p "$PROJECT_DIR" "$PROJECT_DIR/mtg" "$PROJECT_DIR/escalation" "$LOG_DIR"
 
+# ── レビュー追跡用 ──────────────────────────────────────────
+REVIEW_LOG="$PROJECT_DIR/.review-agents.jsonl"
+> "$REVIEW_LOG"
+
 # ── ユーティリティ ──────────────────────────────────────────
 
 log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_DIR/${TIMESTAMP}.log"; }
@@ -145,6 +149,7 @@ run_agent() {
   agent_name=$(get_agent_field "$agent_id" ".icon + \" \" + .name + \" \" + .title")
 
   record_agent_start "$agent_id"
+  local agent_start_ts=$(date +%s)
   log "🚀 ${agent_name} 開始（${model}, maxTurns=${max_turns}）"
 
   local agent_log="$LOG_DIR/${TIMESTAMP}_${agent_id}.log"
@@ -158,20 +163,28 @@ run_agent() {
     2>&1 | tee -a "$agent_log" || exit_code=$?
 
   record_agent_end "$agent_id"
+  local agent_duration=$(( $(date +%s) - agent_start_ts ))
 
-  # ── 育成ステータス判定 ──
-  local last_lines
+  # ── 育成ステータス判定 + レビューデータ記録 ──
+  local last_lines result_status="ok"
   last_lines=$(tail -20 "$agent_log" 2>/dev/null || echo "")
   if echo "$last_lines" | grep -q "Reached max turns"; then
+    result_status="maxturns"
     log "⚠️  ${agent_name} ターン上限到達（${max_turns}/${max_turns}）→ EXP付与なし ※maxTurns引き上げを検討"
-    return 1
   elif [ $exit_code -ne 0 ]; then
+    result_status="error"
     log "❌ ${agent_name} エラー終了（exit=$exit_code）→ EXP付与なし"
-    return 1
   else
     log "✅ ${agent_name} 正常完了"
-    return 0
   fi
+
+  # レビュー用データ記録（JSONL形式）
+  printf '{"id":"%s","name":"%s","status":"%s","model":"%s","maxTurns":%s,"duration":%s}\n' \
+    "$agent_id" "$agent_name" "$result_status" "$model" "$max_turns" "$agent_duration" \
+    >> "${REVIEW_LOG:-/dev/null}"
+
+  [ "$result_status" != "ok" ] && return 1
+  return 0
 }
 
 # ── タイムアウト付きwait ──────────────────────────────────────
@@ -184,6 +197,10 @@ wait_with_timeout() {
   local agent_id="${3:-unknown}"
   local agent_name
   agent_name=$(get_agent_field "$agent_id" ".icon + \" \" + .name + \" \" + .title" 2>/dev/null || echo "$agent_id")
+  local model
+  model=$(get_agent_field "$agent_id" ".model" 2>/dev/null || echo "unknown")
+  local mt
+  mt=$(get_agent_field "$agent_id" ".maxTurns" 2>/dev/null || echo 0)
   local elapsed=0
   local interval=5
 
@@ -192,6 +209,10 @@ wait_with_timeout() {
       kill "$pid" 2>/dev/null || true
       wait "$pid" 2>/dev/null || true
       log "⏰ ${agent_name} タイムアウト（${timeout}秒超過）→ EXP付与なし ※応答停滞"
+      # レビュー用データ記録（タイムアウト）
+      printf '{"id":"%s","name":"%s","status":"timeout","model":"%s","maxTurns":%s,"duration":%s}\n' \
+        "$agent_id" "$agent_name" "$model" "$mt" "$timeout" \
+        >> "${REVIEW_LOG:-/dev/null}"
       return 1
     fi
     sleep $interval
@@ -199,6 +220,130 @@ wait_with_timeout() {
   done
   wait "$pid"
   return $?
+}
+
+# ── パフォーマンスレビュー生成 ─────────────────────────────────
+# 実行結果を分析し、改善提案を含むレビューJSONをログに出力
+
+generate_review() {
+  [ ! -f "$REVIEW_LOG" ] && return
+  [ ! -s "$REVIEW_LOG" ] && return
+
+  local agents_json total ok mt to err rate
+
+  # JSONL → JSON配列
+  agents_json=$(jq -s '.' "$REVIEW_LOG" 2>/dev/null || echo '[]')
+
+  total=$(echo "$agents_json" | jq 'length')
+  ok=$(echo "$agents_json" | jq '[.[] | select(.status=="ok")] | length')
+  mt=$(echo "$agents_json" | jq '[.[] | select(.status=="maxturns")] | length')
+  to=$(echo "$agents_json" | jq '[.[] | select(.status=="timeout")] | length')
+  err=$(echo "$agents_json" | jq '[.[] | select(.status=="error")] | length')
+
+  rate=0
+  [ "$total" -gt 0 ] && rate=$((ok * 100 / total))
+
+  # 改善提案を生成
+  local suggestions='[]'
+
+  # ターン上限到達
+  if [ "$mt" -gt 0 ]; then
+    local mt_agents
+    mt_agents=$(echo "$agents_json" | jq -r '[.[] | select(.status=="maxturns") | .id] | join(", ")')
+    local mt_max
+    mt_max=$(echo "$agents_json" | jq '[.[] | select(.status=="maxturns") | .maxTurns] | max')
+    local mt_suggest=$((mt_max + 10))
+    suggestions=$(echo "$suggestions" | jq \
+      --arg title "ターン上限到達: ${mt}件" \
+      --arg desc "エージェント（${mt_agents}）がmaxTurnsに達して途中終了。ターン数を引き上げると完了率が向上します。" \
+      --arg prompt "./ai-company.sh \"テーマ\" --max-turns ${mt_suggest}" \
+      '. + [{"type":"maxturns","icon":"⚠️","severity":"warning","title":$title,"desc":$desc,"prompt":$prompt}]')
+  fi
+
+  # タイムアウト
+  if [ "$to" -gt 0 ]; then
+    local to_agents
+    to_agents=$(echo "$agents_json" | jq -r '[.[] | select(.status=="timeout") | .id] | join(", ")')
+    suggestions=$(echo "$suggestions" | jq \
+      --arg title "タイムアウト: ${to}件" \
+      --arg desc "エージェント（${to_agents}）が応答停滞でタイムアウト。プロンプトのスコープを絞るか、モデルを変更してください。" \
+      --arg prompt "プロンプトに「Web検索は最大2回」「出力は1回で完了」等の制約を追加して再実行" \
+      '. + [{"type":"timeout","icon":"⏰","severity":"warning","title":$title,"desc":$desc,"prompt":$prompt}]')
+  fi
+
+  # エラー
+  if [ "$err" -gt 0 ]; then
+    local err_agents
+    err_agents=$(echo "$agents_json" | jq -r '[.[] | select(.status=="error") | .id] | join(", ")')
+    suggestions=$(echo "$suggestions" | jq \
+      --arg title "エラー終了: ${err}件" \
+      --arg desc "エージェント（${err_agents}）がエラーで終了。ログを確認して原因を特定してください。" \
+      --arg prompt "tail -50 logs/${TIMESTAMP}_*.log | grep -i error" \
+      '. + [{"type":"error","icon":"❌","severity":"critical","title":$title,"desc":$desc,"prompt":$prompt}]')
+  fi
+
+  # 実行時間が長い
+  if [ "$rate" -ge 80 ] && [ "${TOTAL_DURATION:-0}" -gt 600 ]; then
+    suggestions=$(echo "$suggestions" | jq \
+      --arg title "実行時間の最適化" \
+      --arg desc "成功率は高い（${rate}%）ですが、全体で${TOTAL_DURATION}秒かかっています。sonnet/haikuモデルの活用で高速化が可能です。" \
+      --arg prompt "./ai-company.sh \"テーマ\" --model sonnet" \
+      '. + [{"type":"speed","icon":"🚀","severity":"info","title":$title,"desc":$desc,"prompt":$prompt}]')
+  fi
+
+  # 全成功
+  if [ "$rate" -eq 100 ]; then
+    local grade="S"
+    [ "${TOTAL_DURATION:-0}" -gt 300 ] && grade="A"
+    [ "${TOTAL_DURATION:-0}" -gt 600 ] && grade="B"
+    suggestions=$(echo "$suggestions" | jq \
+      --arg title "全エージェント正常完了（グレード: ${grade}）" \
+      --arg desc "すべてのエージェントが正常に完了しました。成果物の品質を確認してください。" \
+      '. + [{"type":"success","icon":"🎉","severity":"success","title":$title,"desc":$desc,"prompt":""}]')
+  fi
+
+  # 成功率が低い
+  if [ "$rate" -lt 50 ] && [ "$total" -gt 2 ]; then
+    suggestions=$(echo "$suggestions" | jq \
+      --arg title "成功率が低い（${rate}%）" \
+      --arg desc "半数以上のエージェントが失敗しています。opusモデルの使用やプロンプトの見直しを検討してください。" \
+      --arg prompt "./ai-company.sh \"テーマ\" --model opus --max-turns 20" \
+      '. + [{"type":"quality","icon":"📉","severity":"critical","title":$title,"desc":$desc,"prompt":$prompt}]')
+  fi
+
+  # グレード判定
+  local grade="D"
+  if [ "$rate" -eq 100 ] && [ "${TOTAL_DURATION:-0}" -le 180 ]; then grade="S"
+  elif [ "$rate" -eq 100 ] && [ "${TOTAL_DURATION:-0}" -le 300 ]; then grade="A"
+  elif [ "$rate" -ge 80 ]; then grade="B"
+  elif [ "$rate" -ge 50 ]; then grade="C"
+  fi
+
+  # レビューJSON出力
+  local review
+  review=$(jq -n \
+    --argjson agents "$agents_json" \
+    --argjson total "$total" \
+    --argjson success "$ok" \
+    --argjson maxturns "$mt" \
+    --argjson timeouts "$to" \
+    --argjson errors "$err" \
+    --argjson successRate "$rate" \
+    --argjson totalDuration "${TOTAL_DURATION:-0}" \
+    --arg grade "$grade" \
+    --argjson suggestions "$suggestions" \
+    '{agents:$agents,total:$total,success:$success,maxturns:$maxturns,timeouts:$timeouts,errors:$errors,successRate:$successRate,totalDuration:$totalDuration,grade:$grade,suggestions:$suggestions}')
+
+  log "__REVIEW_JSON__:${review}"
+  log ""
+  log "━━━ パフォーマンスレビュー ━━━"
+  log "📊 グレード: ${grade} | 成功率: ${rate}% (${ok}/${total}) | 所要時間: ${TOTAL_DURATION:-?}秒"
+  [ "$mt" -gt 0 ] && log "⚠️  ターン上限到達: ${mt}件"
+  [ "$to" -gt 0 ] && log "⏰ タイムアウト: ${to}件"
+  [ "$err" -gt 0 ] && log "❌ エラー: ${err}件"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  rm -f "$REVIEW_LOG"
 }
 
 # ── 非同期レビュー ────────────────────────────────────────────
@@ -308,6 +453,8 @@ if [ "$THEME_WEIGHT" = "lightweight" ]; then
   log "🎉 軽量モード完了"
   log "⏱️  所要時間: ${TOTAL_DURATION}秒"
   log "============================================"
+
+  generate_review
 
   notify_slack "💬 軽量応答完了\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒"
   exit 0
@@ -453,6 +600,8 @@ R&Dアイデア: $(extract_summary "$PROJECT_DIR/rd-report.md")
   log "⏱️  総所要時間: ${TOTAL_DURATION}秒"
   log "📊 計測データ: $METRICS_FILE"
   log "============================================"
+
+  generate_review
 
   notify_slack "🎉 中量モード完了\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒\n成果物: $PROJECT_DIR"
   log "🏁 全工程終了"
@@ -828,6 +977,8 @@ ALL_AGENTS="ceo secretary chief-secretary marketing hr cs rd planner architect d
 for agent_id in $ALL_AGENTS; do
   add_exp "$agent_id" 100 "プロジェクト完了"
 done
+
+generate_review
 
 notify_slack "🎉 AI会社プロジェクト完了 v5（重量モード）\nテーマ: $THEME\n所要時間: ${TOTAL_DURATION}秒\n成果物: $PROJECT_DIR"
 
