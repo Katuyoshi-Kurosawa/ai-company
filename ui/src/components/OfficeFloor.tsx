@@ -592,9 +592,9 @@ export function OfficeFloor({
       {/* ── Map Container with zoom ── */}
       <div className="w-full h-full transition-transform duration-1000 ease-in-out origin-center"
         style={{ transform }}>
-        <div className="relative w-full h-full">
+        <div className="relative mx-auto" style={{ aspectRatio: `${VW} / ${VH}`, maxWidth: '100%', maxHeight: '100%' }}>
           {/* ── Building SVG ── */}
-          <svg className="w-full h-full" viewBox={`0 0 ${VW} ${VH}`} preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <svg className="w-full h-full" viewBox={`0 0 ${VW} ${VH}`} xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#1a1a2e" />
