@@ -156,13 +156,37 @@ run_agent() {
 
   local agent_log="$LOG_DIR/${TIMESTAMP}_${agent_id}.log"
   local exit_code=0
+  local agent_timeout=${5:-120}  # 5番目の引数でタイムアウト秒数（デフォルト120秒）
+
+  # バックグラウンドで実行し、タイムアウトで自動kill
   env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p \
     --model "$model" \
     --system-prompt "$(cat "$system_prompt_file")" \
     --max-turns "$max_turns" \
     --dangerously-skip-permissions \
     "$prompt" \
-    2>&1 | tee -a "$agent_log" || exit_code=$?
+    > "$agent_log" 2>&1 &
+  local agent_pid=$!
+
+  # タイムアウト付きwait
+  local elapsed_wait=0
+  while kill -0 "$agent_pid" 2>/dev/null; do
+    if [ $elapsed_wait -ge $agent_timeout ]; then
+      log "⏰ ${agent_name} タイムアウト（${agent_timeout}秒超過）→ 強制終了"
+      kill "$agent_pid" 2>/dev/null
+      wait "$agent_pid" 2>/dev/null
+      exit_code=124
+      break
+    fi
+    sleep 2
+    elapsed_wait=$((elapsed_wait + 2))
+  done
+  wait "$agent_pid" 2>/dev/null || exit_code=$?
+
+  # ログをstdoutに出力（relay.jsが拾えるように）
+  if [ -s "$agent_log" ]; then
+    cat "$agent_log"
+  fi
 
   record_agent_end "$agent_id"
   local agent_duration=$(( $(date +%s) - agent_start_ts ))
@@ -443,7 +467,7 @@ if [ "$THEME_WEIGHT" = "lightweight" ]; then
 - 社長や社員の近況を交えた温かい返答
 - 必要に応じて本日の予定や進行中の案件を簡潔に報告
 - 何かプロジェクト指示があればお気軽にどうぞ、と添える
-" "haiku" "5"
+" "haiku" "5" "60"
   add_exp "secretary" 10 "軽量応答"
 
   PROJECT_END=$(date +%s)
