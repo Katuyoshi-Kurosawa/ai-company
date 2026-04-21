@@ -180,7 +180,7 @@ export function useOfficeActivity(lines: LogLine[], isRunning: boolean) {
   }, []);
 
   // クリックで話す（吹き出しのみ表示、アクション状態は変えない）
-  const triggerSpeech = useCallback((agentId: string, _defaultRoom: RoomId) => {
+  const triggerSpeech = useCallback((agentId: string, currentRoom: RoomId) => {
     const templates = SPEECH_TEMPLATES[agentId];
     if (!templates) return;
     const speech = pick(templates.click);
@@ -196,9 +196,10 @@ export function useOfficeActivity(lines: LogLine[], isRunning: boolean) {
         });
       } else {
         // アクティビティがない場合は吹き出し専用エントリ（idleのまま）
+        // currentRoom: クリック時の実際の部屋を使用（AGENT_PATTERNSのdefaultRoomと異なる場合がある）
         next.set(agentId, {
           agentId,
-          room: AGENT_PATTERNS[agentId]?.defaultRoom ?? 'open-office',
+          room: currentRoom,
           action: 'idle',
           speech,
           speechExpiry: Date.now() + 3500,
