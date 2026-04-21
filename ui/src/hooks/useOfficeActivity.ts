@@ -24,8 +24,8 @@ export interface OfficeActivity {
 
 /* ── エージェントIDとログパターンのマッピング ── */
 const AGENT_PATTERNS: Record<string, { names: string[]; defaultRoom: RoomId }> = {
-  'ceo':              { names: ['ceo', '黒澤', 'CEO'],                  defaultRoom: 'president' },
-  'secretary':        { names: ['secretary', '一条', 'CEO秘書'],         defaultRoom: 'president' },
+  'secretary':        { names: ['secretary', '一条', 'CEO秘書'],         defaultRoom: 'executive' },
+  'ceo':              { names: ['ceo', '黒澤'],                         defaultRoom: 'president' },
   'chief-secretary':  { names: ['chief-secretary', '如月', '秘書部長'],  defaultRoom: 'executive' },
   'marketing':        { names: ['marketing', '星野', 'マーケティング'],   defaultRoom: 'open-office' },
   'hr':               { names: ['hr', '雪村', '人事'],                   defaultRoom: 'open-office' },
