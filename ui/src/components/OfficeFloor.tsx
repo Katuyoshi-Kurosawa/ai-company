@@ -439,10 +439,10 @@ function Minimap({ activeRooms, isLive }: { activeRooms?: Set<RoomId>; isLive?: 
 // ══════════════════════════════════════════
 // HUD: Quest Log (bottom-right)
 // ══════════════════════════════════════════
-function QuestLog({ items, isLive }: { items?: { label: string; status: 'active' | 'done' | 'error' }[]; isLive?: boolean }) {
+function QuestLog({ items, isLive, executing }: { items?: { label: string; status: 'active' | 'done' | 'error' }[]; isLive?: boolean; executing?: boolean }) {
   if (!isLive || !items || items.length === 0) return null;
   return (
-    <div className="absolute bottom-3 right-3 z-30 w-56">
+    <div className="absolute right-3 z-30 w-56" style={{ bottom: executing ? '8.5rem' : '0.75rem' }}>
       <div className="rounded-lg border border-white/15 backdrop-blur-md overflow-hidden"
         style={{ background: 'rgba(15,23,42,0.8)', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}>
         <div className="px-3 py-1.5 border-b border-white/10 flex items-center gap-2">
@@ -859,7 +859,7 @@ export function OfficeFloor({
       </div>
 
       {/* Bottom-right: Quest Log */}
-      <QuestLog items={questItems} isLive={isLive} />
+      <QuestLog items={questItems} isLive={isLive} executing={executing} />
 
       {/* Bottom-center: Dock */}
       <BottomDock agents={agents} selectedId={selectedId} onSelect={onSelect} activities={activities} />
