@@ -216,7 +216,8 @@ run_agent() {
     "$agent_id" "$agent_name" "$result_status" "$model" "$max_turns" "$agent_duration" \
     >> "${REVIEW_LOG:-/dev/null}"
 
-  [ "$result_status" != "ok" ] && return 1
+  # エージェント失敗でもスクリプトは続行（set -e 対策）
+  # ステータスはレビューデータ + ログに記録済み
   return 0
 }
 
