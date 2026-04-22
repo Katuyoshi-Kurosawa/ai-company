@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import type { ExecutionRecord, ExecutionAction, ReviewData, ReviewSuggestion } from '../hooks/useExecutionHistory';
+import { useState, useMemo, useEffect } from 'react';
+import type { ExecutionRecord, ExecutionAction, ReviewData, ReviewSuggestion, FileInfo } from '../hooks/useExecutionHistory';
 import { FilePreviewModal } from './FilePreviewModal';
 
 interface Props {
@@ -24,6 +24,24 @@ function formatDuration(sec: number): string {
   const s = sec % 60;
   if (m > 0) return `${m}分${s}秒`;
   return `${s}秒`;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileTypeLabel(name: string): { label: string; color: string } {
+  if (name.endsWith('.md')) return { label: 'Markdown', color: 'bg-blue-500/20 text-blue-300' };
+  if (name.endsWith('.json')) return { label: 'JSON', color: 'bg-amber-500/20 text-amber-300' };
+  if (name.endsWith('.html')) return { label: 'HTML', color: 'bg-orange-500/20 text-orange-300' };
+  if (name.endsWith('.sql')) return { label: 'SQL', color: 'bg-violet-500/20 text-violet-300' };
+  if (name.endsWith('.css')) return { label: 'CSS', color: 'bg-cyan-500/20 text-cyan-300' };
+  if (name.match(/\.tsx?$/)) return { label: 'TypeScript', color: 'bg-blue-500/20 text-blue-300' };
+  if (name.match(/\.jsx?$/)) return { label: 'JavaScript', color: 'bg-yellow-500/20 text-yellow-300' };
+  if (name.endsWith('.txt')) return { label: 'Text', color: 'bg-white/10 text-white/50' };
+  return { label: 'File', color: 'bg-white/10 text-white/50' };
 }
 
 function relativeTime(iso: string): string {
@@ -387,6 +405,29 @@ function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
 }) {
   const r = record;
   const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'files' | 'review'>(r.review ? 'review' : 'overview');
+  const [dynamicFileInfos, setDynamicFileInfos] = useState<FileInfo[]>([]);
+
+  // fileInfosが無い既存データ用: ファイルタブ表示時にメタ情報を動的取得
+  useEffect(() => {
+    if (activeTab !== 'files' || r.files.length === 0) return;
+    if (r.fileInfos && r.fileInfos.length > 0) {
+      setDynamicFileInfos(r.fileInfos);
+      return;
+    }
+    fetch('http://localhost:3939/file-meta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths: r.files }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        const infos: FileInfo[] = (data.files || [])
+          .filter((f: any) => !f.error)
+          .map((f: any) => ({ path: f.path, name: f.name, size: f.size, description: f.description || '', modified: f.modified }));
+        setDynamicFileInfos(infos);
+      })
+      .catch(() => {});
+  }, [activeTab, r.files, r.fileInfos]);
 
   const agentEvents = r.actions.filter(a => a.type === 'agent');
   const agents = useMemo(() => {
@@ -565,19 +606,31 @@ function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
           r.files.length > 0 ? (
             <div className="space-y-1.5">
               {r.files.map((f, i) => {
-                const name = f.split('/').pop() || f;
-                const isMarkdown = name.endsWith('.md');
-                const isJson = name.endsWith('.json');
+                const allInfos = dynamicFileInfos.length > 0 ? dynamicFileInfos : (r.fileInfos || []);
+                const meta = allInfos.find(fi => fi.path === f);
+                const name = meta?.name || f.split('/').pop() || f;
+                const icon = name.endsWith('.md') ? '📝' : name.endsWith('.json') ? '📊' : name.endsWith('.html') ? '🌐' : name.endsWith('.sql') ? '🗄️' : '📄';
+                const ft = fileTypeLabel(name);
                 return (
                   <button key={i}
                     onClick={() => onPreview(f)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 bg-white/5 hover:bg-indigo-500/15 rounded-lg cursor-pointer transition-all group text-left">
-                    <span className="text-xl">
-                      {isMarkdown ? '📝' : isJson ? '📊' : name.endsWith('.html') ? '🌐' : name.endsWith('.sql') ? '🗄️' : '📄'}
-                    </span>
+                    <span className="text-xl">{icon}</span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium group-hover:text-indigo-300 transition-colors truncate">{name}</div>
-                      <div className="text-[10px] font-mono truncate" style={{ color: theme.muted }}>{f}</div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium group-hover:text-indigo-300 transition-colors truncate">{name}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${ft.color}`}>{ft.label}</span>
+                        {meta && (
+                          <span className="text-[9px] font-mono shrink-0" style={{ color: theme.muted }}>
+                            {formatFileSize(meta.size)}
+                          </span>
+                        )}
+                      </div>
+                      {meta?.description ? (
+                        <div className="text-[10px] truncate" style={{ color: theme.muted }}>{meta.description}</div>
+                      ) : (
+                        <div className="text-[10px] font-mono truncate" style={{ color: theme.muted }}>{f}</div>
+                      )}
                     </div>
                     <span className="text-xs text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-2 py-1 bg-indigo-500/20 rounded">
                       表示

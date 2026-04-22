@@ -40,6 +40,14 @@ export interface ReviewData {
   suggestions: ReviewSuggestion[];
 }
 
+export interface FileInfo {
+  path: string;
+  name: string;
+  size: number;          // bytes
+  description: string;   // 先頭行や見出しから抽出
+  modified?: string;     // ISO string
+}
+
 export interface ExecutionRecord {
   id: string;
   type: 'company' | 'mtg' | 'escalation';
@@ -50,7 +58,8 @@ export interface ExecutionRecord {
   finishedAt?: string;
   durationSec?: number;
   outputDir?: string;
-  files: string[];
+  files: string[];       // パス文字列（後方互換）
+  fileInfos: FileInfo[]; // 詳細メタ情報
   actions: ExecutionAction[];
   logLineCount: number;
   slackSent: boolean;
@@ -155,6 +164,27 @@ export function parseLogLines(lines: { text: string; time: number }[]): {
   return { actions, files, slackSent, outputDir, review };
 }
 
+async function fetchFileMeta(paths: string[]): Promise<FileInfo[]> {
+  try {
+    const res = await fetch('http://localhost:3939/file-meta', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.files || []).filter((f: any) => !f.error).map((f: any) => ({
+      path: f.path,
+      name: f.name,
+      size: f.size,
+      description: f.description || '',
+      modified: f.modified,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export function useExecutionHistory() {
   const [records, setRecords] = useState<ExecutionRecord[]>(load);
 
@@ -165,6 +195,7 @@ export function useExecutionHistory() {
       status: 'running',
       startedAt: new Date().toISOString(),
       files: [],
+      fileInfos: [],
       actions: [{ time: new Date().toISOString(), type: 'start', label: `${label} 実行開始` }],
       logLineCount: 0,
       slackSent: false,
@@ -178,10 +209,13 @@ export function useExecutionHistory() {
   }, []);
 
   const finishRecord = useCallback((id: string, status: 'done' | 'error', lines: { text: string; time: number }[], errorMessage?: string) => {
+    const { actions, files, slackSent, outputDir, review } = parseLogLines(lines);
+    const allFiles = [...new Set(files)];
+
+    // まずレコードを即座に更新（ファイルメタなし）
     setRecords(prev => {
       const next = prev.map(r => {
         if (r.id !== id) return r;
-        const { actions, files, slackSent, outputDir, review } = parseLogLines(lines);
         const finishedAt = new Date().toISOString();
         const durationSec = Math.round((Date.now() - new Date(r.startedAt).getTime()) / 1000);
         return {
@@ -190,7 +224,8 @@ export function useExecutionHistory() {
           finishedAt,
           durationSec,
           outputDir: outputDir ?? undefined,
-          files: [...new Set([...r.files, ...files])],
+          files: [...new Set([...r.files, ...allFiles])],
+          fileInfos: r.fileInfos,
           actions: [...r.actions, ...actions],
           logLineCount: lines.length,
           slackSent: r.slackSent || slackSent,
@@ -201,6 +236,21 @@ export function useExecutionHistory() {
       save(next);
       return next;
     });
+
+    // 非同期でファイルメタ情報を取得して更新
+    if (allFiles.length > 0) {
+      fetchFileMeta(allFiles).then(fileInfos => {
+        if (fileInfos.length === 0) return;
+        setRecords(prev => {
+          const next = prev.map(r => {
+            if (r.id !== id) return r;
+            return { ...r, fileInfos };
+          });
+          save(next);
+          return next;
+        });
+      });
+    }
   }, []);
 
   const deleteRecord = useCallback((id: string) => {

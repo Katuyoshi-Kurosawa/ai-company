@@ -176,12 +176,57 @@ const server = http.createServer(async (req, res) => {
     const resolved = safePath(filePath);
     if (!resolved) return json(res, 400, { error: 'Invalid path' });
     try {
+      const stat = fs.statSync(resolved);
       const content = fs.readFileSync(resolved, 'utf-8');
       const name = path.basename(resolved);
-      return json(res, 200, { name, content });
+      return json(res, 200, { name, content, size: stat.size, modified: stat.mtime.toISOString() });
     } catch {
       return json(res, 404, { error: 'File not found' });
     }
+  }
+
+  // ファイルメタ一括取得（パス配列 → サイズ・更新日時）
+  if (url.pathname === '/file-meta' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { paths } = JSON.parse(body);
+        const results = (paths || []).map(p => {
+          const resolved = safePath(p);
+          if (!resolved) return { path: p, error: 'invalid' };
+          try {
+            const stat = fs.statSync(resolved);
+            const name = path.basename(resolved);
+            // 説明: MDファイルは見出し、JSONはキー、その他は先頭行
+            let description = '';
+            try {
+              const head = fs.readFileSync(resolved, 'utf-8').slice(0, 500);
+              if (name.endsWith('.md')) {
+                const h1 = head.match(/^#\s+(.+)/m);
+                const h2 = head.match(/^##\s+(.+)/m);
+                description = h1?.[1] || h2?.[1] || head.split('\n').find(l => l.trim()) || '';
+              } else if (name.endsWith('.json')) {
+                const parsed = JSON.parse(fs.readFileSync(resolved, 'utf-8'));
+                if (parsed.title) description = parsed.title;
+                else if (parsed.theme) description = parsed.theme;
+                else description = Object.keys(parsed).slice(0, 3).join(', ');
+              } else {
+                description = head.split('\n').find(l => l.trim()) || '';
+              }
+            } catch { /* ignore read errors */ }
+            if (description.length > 80) description = description.slice(0, 77) + '...';
+            return { path: p, name, size: stat.size, modified: stat.mtime.toISOString(), description };
+          } catch {
+            return { path: p, error: 'not found' };
+          }
+        });
+        return json(res, 200, { files: results });
+      } catch {
+        return json(res, 400, { error: 'Invalid JSON body' });
+      }
+    });
+    return;
   }
 
   // ── ジョブ中断 ────────────────────────────────────
