@@ -6,7 +6,7 @@ import { useRelay } from './hooks/useRelay';
 import { useExecutionHistory, parseLogLines } from './hooks/useExecutionHistory';
 import { recordExecution, updateExecutionResult, recordSkillExperience } from './lib/routeRecommender';
 import type { RouteType } from './lib/routeRecommender';
-import { OfficeFloor } from './components/OfficeFloor';
+import { OfficeView } from './components/OfficeView';
 import { useOfficeActivity } from './hooks/useOfficeActivity';
 import { useMissionProgress } from './hooks/useMissionProgress';
 import { MissionTimeline } from './components/MissionTimeline';
@@ -277,26 +277,20 @@ export default function App() {
         <main className={`flex-1 min-w-0 overflow-auto ${executing ? 'pb-32' : ''}`}>
           {view === 'office' && (
             <div className="h-full">
-              <OfficeFloor
+              <OfficeView
                 agents={company.agents}
-                onSelect={setSelectedAgent}
-                selectedId={selectedAgent?.id}
-                isLive={isLive}
                 activities={officeActivity.activities}
                 activeRooms={officeActivity.activeRooms}
-                energyLevel={officeActivity.energyLevel}
-                livePhase={officeActivity.phase}
-                liveProgress={officeActivity.progress}
-                liveAgentCount={officeActivity.liveAgentCount}
-                onAgentClick={officeActivity.triggerSpeech}
+                isRunning={isLive}
                 executing={executing}
-                commandLabel={executionLabel}
-                elapsed={relay.elapsed}
                 questItems={questItems}
-                onShowDetail={(agent) => { setSelectedAgent(agent); setShowDetail(true); }}
                 missionTimeline={isLive && mission.phases.length > 0 ? (
                   <MissionTimeline mission={mission} agents={company.agents} elapsed={relay.elapsed} />
                 ) : undefined}
+                onUpdateAgent={(id, updates) => {
+                  store.updateAgent(id, updates);
+                }}
+                onTriggerSpeech={officeActivity.triggerSpeech}
               />
             </div>
           )}
