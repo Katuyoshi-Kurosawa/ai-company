@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import type { Agent } from '../types';
 import type { RelayState } from '../hooks/useRelay';
+import { AutoTextarea } from './AutoTextarea';
+import type { FileAttachment } from './AutoTextarea';
 import type { ExecutionRecord } from '../hooks/useExecutionHistory';
 import { PixelCharacter } from './PixelCharacter';
 import { ExecutionHistory } from './ExecutionHistory';
@@ -38,6 +40,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
   const [mode, setMode] = useState<Mode>('company');
 
   const [companyTheme, setCompanyTheme] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
   const [mtgType, setMtgType] = useState('kickoff');
   const [mtgAgenda, setMtgAgenda] = useState('');
   const [mtgRounds, setMtgRounds] = useState(3);
@@ -55,9 +58,14 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
   // ルート選択時の実行ハンドラ
   const handleRouteSelect = (route: RouteOption, requirementNotes?: string) => {
     if (!companyTheme.trim()) return;
+    let fullTheme = companyTheme;
+    if (attachedFiles.length > 0) {
+      const fileSection = attachedFiles.map(f => `--- ${f.name} ---\n${f.content}`).join('\n\n');
+      fullTheme += `\n\n【添付ファイル】\n${fileSection}`;
+    }
     const theme_with_notes = requirementNotes
-      ? `${companyTheme}\n\n【要件ポイント】\n${requirementNotes}`
-      : companyTheme;
+      ? `${fullTheme}\n\n【要件ポイント】\n${requirementNotes}`
+      : fullTheme;
     const args = {
       theme: theme_with_notes,
       routeType: route.type,
@@ -212,12 +220,31 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
 
               <div>
                 <label className="text-sm font-bold block mb-2">テーマ / 指示</label>
-                <textarea
+                <AutoTextarea
                   value={companyTheme}
-                  onChange={e => { setCompanyTheme(e.target.value); setSelectedRoute(null); }}
-                  placeholder="例: 顧客ランク別割引機能を追加したい"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base h-32 resize-none focus:ring-2 focus:ring-indigo-500/50 focus:outline-none transition-all"
+                  onChange={v => { setCompanyTheme(v); setSelectedRoute(null); }}
+                  placeholder="例: 顧客ランク別割引機能を追加したい&#10;&#10;ファイルをペースト or ドラッグ＆ドロップで添付できます"
+                  minRows={3}
+                  maxRows={16}
+                  onFiles={files => setAttachedFiles(prev => [...prev, ...files])}
+                  autoFocus
                 />
+                {attachedFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {attachedFiles.map((f, i) => (
+                      <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 rounded-lg text-xs text-indigo-300">
+                        <span>📄</span>
+                        <span className="truncate max-w-[200px]">{f.name}</span>
+                        <span className="text-white/30">({(f.size / 1024).toFixed(1)}KB)</span>
+                        <button
+                          onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
+                          className="ml-1 text-white/30 hover:text-red-400 transition cursor-pointer">
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* リレー未接続の警告 */}
@@ -276,11 +303,12 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
 
               <div>
                 <label className="text-sm font-bold block mb-2">議題</label>
-                <textarea
+                <AutoTextarea
                   value={mtgAgenda}
-                  onChange={e => setMtgAgenda(e.target.value)}
+                  onChange={setMtgAgenda}
                   placeholder="議題を入力..."
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-base h-24 resize-none focus:ring-2 focus:ring-indigo-500/50 focus:outline-none"
+                  minRows={2}
+                  maxRows={8}
                 />
               </div>
 

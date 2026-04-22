@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ExecutionRecord } from '../hooks/useExecutionHistory';
+import { AutoTextarea } from './AutoTextarea';
 
 interface Props {
   connected: boolean;
@@ -22,7 +23,7 @@ const PRESETS = [
 export function QuickInputBar({ connected, onExecute, theme }: Omit<Props, 'history'>) {
   const [value, setValue] = useState('');
   const [expanded, setExpanded] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = () => {
     if (!value.trim() || !connected) return;
@@ -31,25 +32,31 @@ export function QuickInputBar({ connected, onExecute, theme }: Omit<Props, 'hist
     setExpanded(false);
   };
 
+  // 外側クリックで閉じる
+  useEffect(() => {
+    if (!expanded) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node) && !value) {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [expanded, value]);
+
   return (
-    <div className={`relative flex items-center transition-all duration-200 ${expanded ? 'w-80' : 'w-48'}`}>
+    <div ref={wrapperRef} className={`relative flex items-start transition-all duration-200 ${expanded ? 'w-80' : 'w-48'}`}>
       <div className="relative w-full">
-        <input
-          ref={inputRef}
+        <AutoTextarea
           value={value}
-          onChange={e => setValue(e.target.value)}
-          onFocus={() => setExpanded(true)}
-          onBlur={() => { if (!value) setExpanded(false); }}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSubmit();
-            if (e.key === 'Escape') { setValue(''); setExpanded(false); inputRef.current?.blur(); }
-          }}
+          onChange={v => { setValue(v); if (!expanded) setExpanded(true); }}
           placeholder="指示を入力..."
-          className="w-full bg-white/5 border border-white/10 rounded-lg pl-3 pr-20 py-1.5 text-sm
-            focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/30 focus:outline-none
-            placeholder:text-white/20 transition-all"
+          minRows={1}
+          maxRows={expanded ? 6 : 1}
+          onSubmit={handleSubmit}
+          className="!py-1.5 !px-3 !pr-16 !text-sm !rounded-lg"
         />
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
+        <div className="absolute right-1 top-1.5 flex items-center gap-1">
           {!expanded && (
             <kbd className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 font-mono" style={{ color: theme.muted }}>
               ⌘K
