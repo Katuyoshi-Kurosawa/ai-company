@@ -145,7 +145,7 @@ function estimateTime(routeType: RouteType, agentCount: number): number {
   }
   // デフォルト値をエージェント数で補正
   const defaultAgentCount: Record<RouteType, number> = {
-    quick: 1, team: 5, full: 13, training: 4, expert: 3,
+    quick: 1, duo: 2, team: 5, full: 13, training: 4, expert: 3, creative: 4,
   };
   const ratio = agentCount / defaultAgentCount[routeType];
   return Math.round(DEFAULT_ESTIMATES[routeType] * ratio);

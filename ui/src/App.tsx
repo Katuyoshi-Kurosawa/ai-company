@@ -383,7 +383,7 @@ export default function App() {
         <div className="px-6 py-2 flex items-center justify-between">
           <div className="flex gap-2">
             {company.agents.map(a => (
-              <AgentCard key={a.id} agent={a} onClick={() => setSelectedAgent(a)} compact />
+              <AgentCard key={a.id} agent={a} onClick={() => { setSelectedAgent(a); setShowDetail(true); }} compact />
             ))}
           </div>
           <span className="text-[10px]" style={{ color: theme.muted }}>
