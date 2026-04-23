@@ -203,10 +203,12 @@ export function useMissionProgress(
       }
     }
 
-    // 全体進捗
-    const doneCount = phases.filter(p => p.status === 'done').length;
-    const activeBonus = phases.some(p => p.status === 'active') ? 0.5 : 0;
-    const overallProgress = Math.min(100, Math.round(((doneCount + activeBonus) / Math.max(1, phases.length)) * 100));
+    // 全体進捗（完了フェーズを除いたアクティブフェーズ数で計算）
+    const workPhases = phases.filter(p => !p.id.endsWith('-done'));
+    const doneWork = workPhases.filter(p => p.status === 'done').length;
+    const activeWork = workPhases.some(p => p.status === 'active') ? 0.5 : 0;
+    const allDone = phases.some(p => p.id.endsWith('-done') && p.status === 'done');
+    const overallProgress = allDone ? 100 : Math.min(99, Math.round(((doneWork + activeWork) / Math.max(1, workPhases.length)) * 100));
 
     // エージェントイベント解析
     const events = parseAgentEvents(lines);
