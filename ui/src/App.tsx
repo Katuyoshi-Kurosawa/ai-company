@@ -150,6 +150,8 @@ export default function App() {
   // Quest log items from execution phases
   const questItems = useMemo(() => {
     if (!executing) return undefined;
+    // 実行完了後はクエストログをクリア
+    if (relay.status === 'done' || relay.status === 'error') return undefined;
     const joined = relay.lines.map(l => l.text).join('\n');
     const quests: { label: string; status: 'active' | 'done' | 'error' }[] = [];
     const phases = [
