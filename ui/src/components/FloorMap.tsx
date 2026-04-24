@@ -24,15 +24,10 @@ const ROOM_LAYOUT: { id: RoomId; colSpan: number }[] = [
   { id: 'executive', colSpan: 2 },
   { id: 'meeting-a', colSpan: 1 },
   { id: 'meeting-b', colSpan: 1 },
-  // Row 2 の3列目は空き（meeting-a + meeting-b で2列分）
+  { id: 'break', colSpan: 1 },
   { id: 'open-office', colSpan: 3 },
-  { id: 'break', colSpan: 3 },
 ];
 
-/**
- * colSpan に対応する Tailwind クラスを返す
- * ※ Tailwind の JIT で動的クラス生成は効かないため、明示的にマッピング
- */
 function colSpanClass(span: number): string {
   if (span === 2) return 'col-span-2';
   if (span === 3) return 'col-span-3';
@@ -47,8 +42,6 @@ export function FloorMap({
   selectedAgentId,
   onAgentClick,
 }: Props) {
-  // エージェントを部屋ごとにグルーピング
-  // 実行中はアクティビティの room を優先、それ以外はデフォルト room を使用
   const agentsByRoom = useMemo(() => {
     const map = new Map<RoomId, Agent[]>();
     for (const room of ROOM_LAYOUT) map.set(room.id, []);
@@ -63,20 +56,46 @@ export function FloorMap({
   }, [agents, activities, isRunning]);
 
   return (
-    <div className="grid grid-cols-3 gap-3 p-4 h-full content-start">
-      {ROOM_LAYOUT.map((room) => (
-        <RoomSection
-          key={room.id}
-          roomId={room.id}
-          agents={agentsByRoom.get(room.id) ?? []}
-          activities={activities}
-          isRunning={isRunning}
-          selectedAgentId={selectedAgentId}
-          isActiveRoom={activeRooms.has(room.id)}
-          onAgentClick={onAgentClick}
-          className={colSpanClass(room.colSpan)}
-        />
-      ))}
+    <div className="relative h-full">
+      {/* フロアの背景パターン */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{
+        backgroundImage: `
+          linear-gradient(oklch(0.50 0.02 270) 1px, transparent 1px),
+          linear-gradient(90deg, oklch(0.50 0.02 270) 1px, transparent 1px)
+        `,
+        backgroundSize: '40px 40px',
+      }} />
+
+      {/* フロアヘッダー */}
+      <div className="relative flex items-center gap-3 px-5 pt-4 pb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 rounded-full" style={{ background: 'oklch(0.55 0.10 270)' }} />
+          <span className="text-[11px] font-bold tracking-widest uppercase" style={{ color: 'oklch(0.55 0.05 270)' }}>
+            Floor Plan
+          </span>
+        </div>
+        <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, oklch(0.30 0.03 270), transparent)' }} />
+        <span className="text-[10px] font-mono" style={{ color: 'oklch(0.40 0.03 270)' }}>
+          {agents.length}名在籍
+        </span>
+      </div>
+
+      {/* 部屋グリッド */}
+      <div className="relative grid grid-cols-3 gap-2.5 px-4 pb-4 h-[calc(100%-40px)] content-start">
+        {ROOM_LAYOUT.map((room) => (
+          <RoomSection
+            key={room.id}
+            roomId={room.id}
+            agents={agentsByRoom.get(room.id) ?? []}
+            activities={activities}
+            isRunning={isRunning}
+            selectedAgentId={selectedAgentId}
+            isActiveRoom={activeRooms.has(room.id)}
+            onAgentClick={onAgentClick}
+            className={colSpanClass(room.colSpan)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
