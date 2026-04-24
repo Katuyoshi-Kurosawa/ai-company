@@ -143,9 +143,15 @@ export function AgentSlot({ agent, activity, isRunning, selected, onClick }: Pro
         />
       </div>
 
-      {/* --- 2. 役職テキスト --- */}
+      {/* --- 2. 名前 + 役職テキスト --- */}
       <span
-        className="mt-1 w-full text-center text-[11px] leading-tight text-gray-400 truncate"
+        className="mt-1 w-full text-center text-[11px] leading-tight text-white/80 font-bold truncate"
+        title={agent.name}
+      >
+        {agent.name}
+      </span>
+      <span
+        className="w-full text-center text-[9px] leading-tight text-gray-500 truncate"
         title={agent.title}
       >
         {agent.title}
