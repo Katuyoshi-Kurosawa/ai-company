@@ -175,15 +175,20 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
             <h3 className="text-xs font-bold opacity-40 uppercase tracking-wider mb-3">
               {selectedRoute ? `${selectedRoute.icon} ${selectedRoute.label}チーム` : '実行チーム'}
             </h3>
-            <div className="grid grid-cols-5 gap-2">
-              {teamMembers.slice(0, 15).map(a => (
-                <div key={a.id} className="flex flex-col items-center">
-                  <PixelCharacter visual={a.visual} size="sm" active={a.active} />
-                  <span className="text-[8px] mt-0.5 truncate w-full text-center" style={{ color: theme.muted }}>
-                    {a.name.split(' ')[0]}
-                  </span>
-                </div>
-              ))}
+            <div className="space-y-1">
+              {teamMembers.slice(0, 15).map(a => {
+                const modelColor = a.model === 'opus' ? 'text-amber-400 bg-amber-500/15' : a.model === 'sonnet' ? 'text-blue-400 bg-blue-500/15' : 'text-gray-400 bg-gray-500/15';
+                return (
+                  <div key={a.id} className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-white/5 transition-colors">
+                    <PixelCharacter visual={a.visual} size="sm" active={a.active} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-bold truncate">{a.name.split(' ')[0]}</div>
+                      <div className="text-[8px] truncate" style={{ color: theme.muted }}>{a.title}</div>
+                    </div>
+                    <span className={`text-[7px] px-1 py-0.5 rounded shrink-0 ${modelColor}`}>{a.model}</span>
+                  </div>
+                );
+              })}
             </div>
             {selectedRoute && (
               <p className="text-[10px] mt-2" style={{ color: theme.muted }}>

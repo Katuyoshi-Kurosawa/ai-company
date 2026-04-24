@@ -131,22 +131,33 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
               <div className="flex-1 min-w-0">
                 <p className="text-sm mb-2">{route.description}</p>
 
-                {/* Agent icons */}
-                <div className="flex items-center gap-1 flex-wrap">
-                  {adjusted.agents.slice(0, 8).map(id => {
+                {/* Agent list with names and roles */}
+                <div className="flex flex-wrap gap-1.5">
+                  {adjusted.agents.map(id => {
                     const a = getAgent(id);
                     if (!a) return null;
+                    const isExpert = route.expertInfo?.experts.some(e => e.agentId === id);
+                    const isTrainee = route.trainingInfo?.trainees.some(t => t.agentId === id);
+                    const isMentor = route.trainingInfo?.mentor === id;
+                    const modelColor = a.model === 'opus' ? 'text-amber-400 bg-amber-500/15' : a.model === 'sonnet' ? 'text-blue-400 bg-blue-500/15' : 'text-gray-400 bg-gray-500/15';
                     return (
-                      <div key={id} className="flex flex-col items-center" title={`${a.name} ${a.title}`}>
+                      <div key={id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5 border border-white/5">
                         <PixelCharacter visual={a.visual} size="sm" active={a.active} />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] font-bold truncate">{a.name.split(' ')[0]}</span>
+                            {isExpert && <span className="text-[9px]" title="エキスパート">🏆</span>}
+                            {isMentor && <span className="text-[9px]" title="メンター">👨‍🏫</span>}
+                            {isTrainee && <span className="text-[9px]" title="育成対象">🌱</span>}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] truncate" style={{ color: theme.muted }}>{a.title}</span>
+                            <span className={`text-[8px] px-1 rounded ${modelColor}`}>{a.model}</span>
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
-                  {adjusted.agents.length > 8 && (
-                    <span className="text-xs" style={{ color: theme.muted }}>
-                      +{adjusted.agents.length - 8}名
-                    </span>
-                  )}
                 </div>
 
                 {/* Training info */}
