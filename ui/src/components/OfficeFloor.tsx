@@ -486,7 +486,7 @@ function BottomDock({ agents, selectedId, onSelect, activities }: {
           const deptColor = DEPT_COLORS[a.dept] || DEPT_COLORS.default;
           return (
             <button key={a.id} onClick={() => onSelect(a)}
-              className={`relative flex flex-col items-center cursor-pointer transition-all duration-300 rounded-lg px-1 py-1 min-w-[52px]
+              className={`relative flex flex-col items-center cursor-pointer transition-all duration-300 rounded-lg px-1 py-1 min-w-[56px]
                 ${isSelected ? 'scale-105 -translate-y-0.5' : 'hover:scale-105 hover:-translate-y-0.5'}`}
               style={{
                 background: isSelected ? `${deptColor}20` : 'transparent',
@@ -502,8 +502,8 @@ function BottomDock({ agents, selectedId, onSelect, activities }: {
                   style={{ boxShadow: '0 0 6px rgba(96,165,250,0.6)' }} />
               )}
               {/* 名前 */}
-              <span className="text-[8px] font-bold text-white/70 mt-0.5 truncate w-12 text-center leading-tight">
-                {a.name.split(' ')[0]}
+              <span className="text-[8px] font-bold text-white/70 mt-0.5 truncate w-14 text-center leading-tight">
+                {a.name}
               </span>
               {/* 役職 */}
               <span className="text-[6px] font-medium truncate w-12 text-center leading-tight" style={{ color: deptColor }}>
@@ -792,8 +792,8 @@ export function OfficeFloor({
                         {/* 部署カラードット */}
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: deptColor, boxShadow: `0 0 4px ${deptColor}` }} />
                         {isOpus && <span className="text-[6px] text-amber-400">★</span>}
-                        <span className="text-[9px] font-bold text-white/90 truncate max-w-[52px] leading-tight">
-                          {agent.name.split(' ')[0]}
+                        <span className="text-[9px] font-bold text-white/90 truncate max-w-[72px] leading-tight">
+                          {agent.name}
                         </span>
                       </div>
                       {activity && activity.action !== 'idle' && (
