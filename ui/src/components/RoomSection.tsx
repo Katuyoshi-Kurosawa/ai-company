@@ -236,7 +236,7 @@ export function RoomSection({
 
       {/* --- 部屋ヘッダー（ネームプレート風） --- */}
       <div
-        className="relative flex items-center justify-between px-4 py-2.5"
+        className="relative flex items-center justify-between px-3 py-1.5"
         style={{
           background: theme.headerBg,
           borderBottom: `1px solid oklch(1 0 0 / 0.06)`,
@@ -270,7 +270,7 @@ export function RoomSection({
       </div>
 
       {/* --- エージェント一覧 --- */}
-      <div className="relative flex flex-wrap gap-1 p-3 justify-center min-h-[80px] items-start">
+      <div className="relative flex flex-wrap gap-0.5 p-2 justify-center min-h-[60px] items-start">
         {agents.length > 0 ? (
           agents.map((agent) => (
             <AgentSlot

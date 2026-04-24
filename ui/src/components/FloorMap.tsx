@@ -67,10 +67,10 @@ export function FloorMap({
       }} />
 
       {/* フロアヘッダー */}
-      <div className="relative flex items-center gap-3 px-5 pt-4 pb-2">
+      <div className="relative flex items-center gap-3 px-4 pt-2 pb-1">
         <div className="flex items-center gap-2">
-          <div className="w-1 h-5 rounded-full" style={{ background: 'oklch(0.55 0.10 270)' }} />
-          <span className="text-[11px] font-bold tracking-widest uppercase" style={{ color: 'oklch(0.55 0.05 270)' }}>
+          <div className="w-1 h-4 rounded-full" style={{ background: 'oklch(0.55 0.10 270)' }} />
+          <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: 'oklch(0.55 0.05 270)' }}>
             Floor Plan
           </span>
         </div>
@@ -81,7 +81,7 @@ export function FloorMap({
       </div>
 
       {/* 部屋グリッド */}
-      <div className="relative grid grid-cols-3 gap-2.5 px-4 pb-4 h-[calc(100%-40px)] content-start">
+      <div className="relative grid grid-cols-3 gap-2 px-3 pb-3 content-start">
         {ROOM_LAYOUT.map((room) => (
           <RoomSection
             key={room.id}

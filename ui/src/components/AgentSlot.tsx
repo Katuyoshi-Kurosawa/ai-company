@@ -111,7 +111,7 @@ export function AgentSlot({ agent, activity, isRunning, selected, onClick }: Pro
       onClick={onClick}
       className={[
         // ベースレイアウト: 縦積み・中央寄せ
-        'flex flex-col items-center w-[100px] py-2 px-1 rounded-lg',
+        'flex flex-col items-center w-[90px] py-1.5 px-1 rounded-lg',
         // トランジション
         'transition-all duration-150 ease-out',
         // ホバー演出
