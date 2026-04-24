@@ -192,7 +192,7 @@ export default function App() {
       if (i <= lastFound) quests.push({ label: phases[i].label, status: 'done' });
       else if (i === lastFound + 1) quests.push({ label: phases[i].label, status: 'active' });
     }
-    if (relay.status === 'error') {
+    if ((relay.status as string) === 'error') {
       const last = quests[quests.length - 1];
       if (last) last.status = 'error';
     }
@@ -267,7 +267,7 @@ export default function App() {
           {/* Background job indicator */}
           <BackgroundJobIndicator
             currentJobId={relay.jobId}
-            onConnect={(id) => {
+            onConnect={(_id) => {
               setExecuting(true);
               setExecutionLabel('再接続');
               setView('office');
