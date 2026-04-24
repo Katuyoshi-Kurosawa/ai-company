@@ -252,8 +252,10 @@ wait_with_timeout() {
     sleep $interval
     elapsed=$((elapsed + interval))
   done
-  wait "$pid"
-  return $?
+  # run_agentは常にreturn 0するので、waitも0を期待
+  # ただしPIDが既に回収済みの場合127が返るため安全に処理
+  wait "$pid" 2>/dev/null || true
+  return 0
 }
 
 # ── パフォーマンスレビュー生成 ─────────────────────────────────
