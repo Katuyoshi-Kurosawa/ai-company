@@ -229,6 +229,26 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── ジョブ一覧 ────────────────────────────────────
+  if (url.pathname === '/jobs') {
+    const list = [];
+    for (const job of jobs.values()) {
+      list.push({
+        id: job.id,
+        type: job.type,
+        label: job.label || '',
+        status: job.status,
+        startedAt: job.startedAt,
+        finishedAt: job.finishedAt || null,
+        lineCount: job.lines.length,
+        stalled: job.stalled || false,
+      });
+    }
+    // 新しい順
+    list.sort((a, b) => b.startedAt - a.startedAt);
+    return json(res, 200, { jobs: list });
+  }
+
   // ── ジョブ中断 ────────────────────────────────────
   const abortMatch = url.pathname.match(/^\/abort\/(.+)$/);
   if (abortMatch && req.method === 'POST') {

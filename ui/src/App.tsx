@@ -21,6 +21,7 @@ import { EscalationScreen } from './components/EscalationScreen';
 import { CommandCenter } from './components/CommandCenter';
 import { ExecutionPanel, ExecutionIndicator } from './components/ExecutionPanel';
 import { QuickInputBar, CommandPalette } from './components/QuickCommand';
+import { BackgroundJobIndicator } from './components/BackgroundJobIndicator';
 
 declare const __BUILD_TIME__: string;
 
@@ -262,6 +263,16 @@ export default function App() {
               activity={currentActivity}
             />
           )}
+
+          {/* Background job indicator */}
+          <BackgroundJobIndicator
+            currentJobId={relay.jobId}
+            onConnect={(id) => {
+              setExecuting(true);
+              setExecutionLabel('再接続');
+              setView('office');
+            }}
+          />
 
           <div className="flex items-center gap-6 text-sm">
             <div className="text-center">
