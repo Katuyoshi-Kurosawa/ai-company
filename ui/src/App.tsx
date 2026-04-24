@@ -148,23 +148,41 @@ export default function App() {
   }, [relay.status, relay.lines, relay.error, execHistory]);
 
   // Quest log items from execution phases
+  // モード検出→該当モードのフェーズのみ表示（部分一致の誤判定を防止）
   const questItems = useMemo(() => {
     if (!executing) return undefined;
     // 実行完了後はクエストログをクリア
     if (relay.status === 'done' || relay.status === 'error') return undefined;
     const joined = relay.lines.map(l => l.text).join('\n');
     const quests: { label: string; status: 'active' | 'done' | 'error' }[] = [];
-    const phases = [
-      { key: '軽量モード', label: '秘書が応答中' },
-      { key: '中量PHASE 1', label: '計画＋調査' },
-      { key: '中量PHASE 2', label: '企画＋成果物作成' },
-      { key: 'PHASE 1', label: '調査・計画' },
-      { key: 'PHASE 2', label: '要件＋R&D＋設計＋レビュー' },
-      { key: 'PHASE 3', label: '実装＋QA＋評価＋報告' },
-      { key: 'QA＋最終報告', label: 'QA＋最終報告' },
-      { key: '最終報告', label: '最終報告作成' },
-      { key: '全工程終了', label: '完了' },
-    ];
+
+    // モード検出
+    const isMedium = joined.includes('中量PHASE') || joined.includes('中量モード');
+    const isLightweight = joined.includes('軽量モード') && !isMedium;
+
+    let phases: { key: string; label: string }[];
+    if (isLightweight) {
+      phases = [
+        { key: '軽量モード', label: '秘書が応答中' },
+        { key: '軽量モード完了', label: '完了' },
+      ];
+    } else if (isMedium) {
+      phases = [
+        { key: '中量PHASE 1', label: '計画＋調査' },
+        { key: '中量PHASE 2', label: '企画＋成果物作成' },
+        { key: '全工程終了', label: '完了' },
+      ];
+    } else {
+      phases = [
+        { key: 'PHASE 1', label: '調査・計画' },
+        { key: 'PHASE 2', label: '要件＋R&D＋設計＋レビュー' },
+        { key: 'PHASE 3', label: '実装＋QA＋評価＋報告' },
+        { key: 'QA＋最終報告', label: 'QA＋最終報告' },
+        { key: '最終報告', label: '最終報告作成' },
+        { key: '全工程終了', label: '完了' },
+      ];
+    }
+
     let lastFound = -1;
     for (let i = 0; i < phases.length; i++) {
       if (joined.includes(phases[i].key)) lastFound = i;

@@ -21,22 +21,36 @@ interface Props {
 
 function detectPhase(lines: LogLine[]): { phase: string; progress: number } {
   const joined = lines.map(l => l.text).join('\n');
-  const phases = [
-    // v5 軽量モード
-    { key: '軽量モード', phase: '軽量: 秘書が応答中...', p: 50 },
-    // v5 中量モード
-    { key: '中量PHASE 1', phase: '中量1: 計画＋調査', p: 20 },
-    { key: '中量PHASE 2', phase: '中量2: 企画＋成果物作成', p: 60 },
-    // v5 重量モード (3フェーズ構成)
-    { key: 'PHASE 1', phase: 'PHASE1: 調査・計画（4並列）', p: 15 },
-    { key: 'PHASE 2', phase: 'PHASE2: 要件＋R&D＋設計＋レビュー', p: 40 },
-    { key: 'PHASE 3', phase: 'PHASE3: 実装＋QA＋評価＋報告', p: 65 },
-    { key: 'QA＋最終報告', phase: 'QA＋最終報告', p: 85 },
-    { key: '最終報告', phase: '最終報告作成中...', p: 90 },
-    // 共通
-    { key: '全工程終了', phase: '完了!', p: 100 },
-    { key: '軽量モード完了', phase: '完了!', p: 100 },
-  ];
+
+  // 完了チェック
+  if (joined.includes('全工程終了') || joined.includes('軽量モード完了')) {
+    return { phase: '完了!', progress: 100 };
+  }
+
+  // モード検出→該当モードのフェーズのみチェック（部分一致の誤判定を防止）
+  const isMedium = joined.includes('中量PHASE') || joined.includes('中量モード');
+  const isLightweight = joined.includes('軽量モード') && !isMedium;
+
+  let phases: { key: string; phase: string; p: number }[];
+  if (isLightweight) {
+    phases = [
+      { key: '軽量モード', phase: '軽量: 秘書が応答中...', p: 50 },
+    ];
+  } else if (isMedium) {
+    phases = [
+      { key: '中量PHASE 1', phase: '中量1: 計画＋調査', p: 30 },
+      { key: '中量PHASE 2', phase: '中量2: 企画＋成果物作成', p: 65 },
+    ];
+  } else {
+    phases = [
+      { key: 'PHASE 1', phase: 'PHASE1: 調査・計画（4並列）', p: 15 },
+      { key: 'PHASE 2', phase: 'PHASE2: 要件＋R&D＋設計＋レビュー', p: 40 },
+      { key: 'PHASE 3', phase: 'PHASE3: 実装＋QA＋評価＋報告', p: 65 },
+      { key: 'QA＋最終報告', phase: 'QA＋最終報告', p: 85 },
+      { key: '最終報告', phase: '最終報告作成中...', p: 90 },
+    ];
+  }
+
   let current = { phase: '準備中...', p: 3 };
   for (const ph of phases) {
     if (joined.includes(ph.key)) current = { phase: ph.phase, p: ph.p };
