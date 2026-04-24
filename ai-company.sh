@@ -532,7 +532,7 @@ if [ "$THEME_WEIGHT" = "medium" ]; then
 
 ※このテーマはシステム開発ではなく、文章作成・調査・分析系のタスクです。
 ※ファイル先頭に ## サマリー セクションを付けること。
-" "sonnet" "7" &
+" "sonnet" "7" "180" &
   PID_CEO=$!
 
   run_agent "marketing" "
@@ -544,7 +544,7 @@ if [ "$THEME_WEIGHT" = "medium" ]; then
 - 関連するトレンド・動向（主要3点に絞る）
 - ターゲット分析
 - 参考事例・ベストプラクティス（2-3事例）
-" "sonnet" "10" &
+" "sonnet" "10" "300" &
   PID_MARKETING=$!
 
   run_agent "rd" "
@@ -556,7 +556,7 @@ if [ "$THEME_WEIGHT" = "medium" ]; then
 - 従来のアプローチを超える方法（3案に厳選）
 - 差別化できる切り口
 - 実現可能性と優先度
-" "sonnet" "10" &
+" "sonnet" "10" "300" &
   PID_RD=$!
 
   wait_with_timeout $PID_CEO 180 "ceo" && add_exp "ceo" 20 "タスク完了"
@@ -584,7 +584,7 @@ R&Dアイデア: $(extract_summary "$PROJECT_DIR/rd-report.md")
 - 成果物の要件（品質基準・フォーマット等）
 - ターゲット・ペルソナ
 - 制約事項
-" "sonnet" "10" &
+" "sonnet" "10" "300" &
   PID_PLANNER=$!
 
   run_agent "doc-writer" "
@@ -599,7 +599,7 @@ R&Dアイデア: $(extract_summary "$PROJECT_DIR/rd-report.md")
 ※成果物はそのまま使える完成度で仕上げること。
 ※報告書にはエグゼクティブサマリー・成果物概要・残課題を含めること。
 ※ファイル出力は1回で完了させること（追記・修正の往復を避ける）。
-" "sonnet" "12" &
+" "sonnet" "12" "360" &
   PID_DOC=$!
 
   wait_with_timeout $PID_PLANNER 300 "planner" && add_exp "planner" 20 "タスク完了"
@@ -616,7 +616,7 @@ R&Dアイデア: $(extract_summary "$PROJECT_DIR/rd-report.md")
 2. 成果物のハイライト
 3. 社員の活躍ピックアップ
 4. 次のアクション提言
-" "sonnet" "8"
+" "sonnet" "8" "240"
   add_exp "secretary" 20 "タスク完了"
   record_phase "MEDIUM_PHASE2" "$PHASE2_START"
 
