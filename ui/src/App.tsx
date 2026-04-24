@@ -207,9 +207,24 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: theme.bg, color: theme.text }}>
+      {/* Running indicator stripe */}
+      {isRunning && (
+        <div className="h-1 w-full shrink-0 overflow-hidden relative" style={{ background: 'rgba(99,102,241,0.15)' }}>
+          <div className="absolute inset-0 animate-[runStripe_1.5s_linear_infinite]"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, #6366f1 30%, #a78bfa 50%, #6366f1 70%, transparent 100%)',
+              backgroundSize: '200% 100%',
+            }} />
+          <style>{`@keyframes runStripe { 0% { transform: translateX(-100%) } 100% { transform: translateX(100%) } }`}</style>
+        </div>
+      )}
       {/* Header */}
-      <header className="border-b px-6 py-2 flex items-center justify-between shrink-0"
-        style={{ borderColor: theme.border, background: theme.surface }}>
+      <header className="border-b px-6 py-2 flex items-center justify-between shrink-0 transition-shadow duration-500"
+        style={{
+          borderColor: isRunning ? 'rgba(99,102,241,0.4)' : theme.border,
+          background: theme.surface,
+          boxShadow: isRunning ? '0 2px 20px rgba(99,102,241,0.15)' : 'none',
+        }}>
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
             style={{ background: `${theme.muted}15` }}>
