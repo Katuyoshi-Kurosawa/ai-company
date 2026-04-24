@@ -1,8 +1,7 @@
 /**
  * FloorMap - オフィスフロアマップコンポーネント
  *
- * 6つの部屋を CSS Grid で配置し、各部屋に所属エージェントを表示する。
- * 実行中はエージェントのアクティビティに応じて部屋の割り当てが動的に変わる。
+ * 6つの部屋を CSS Grid で配置し、フロアプランの雰囲気で表示する。
  */
 import { useMemo } from 'react';
 import type { Agent, RoomId } from '../types';
@@ -18,7 +17,6 @@ interface Props {
   onAgentClick: (agent: Agent) => void;
 }
 
-/** 部屋の配置定義（3カラムグリッド上の col-span） */
 const ROOM_LAYOUT: { id: RoomId; colSpan: number }[] = [
   { id: 'president', colSpan: 1 },
   { id: 'executive', colSpan: 2 },
@@ -55,29 +53,49 @@ export function FloorMap({
     return map;
   }, [agents, activities, isRunning]);
 
+  const activeCount = agents.filter(a => {
+    const act = activities.get(a.id);
+    return act && act.action !== 'idle';
+  }).length;
+
   return (
-    <div className="relative h-full">
-      {/* フロアの背景パターン */}
-      <div className="absolute inset-0 opacity-[0.03]" style={{
+    <div className="relative h-full" style={{ background: '#0e0e18' }}>
+      {/* フロア背景 - タイル模様 */}
+      <div className="absolute inset-0 opacity-[0.025]" style={{
         backgroundImage: `
-          linear-gradient(oklch(0.50 0.02 270) 1px, transparent 1px),
-          linear-gradient(90deg, oklch(0.50 0.02 270) 1px, transparent 1px)
+          linear-gradient(rgba(100,100,160,0.5) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(100,100,160,0.5) 1px, transparent 1px)
         `,
-        backgroundSize: '40px 40px',
+        backgroundSize: '48px 48px',
       }} />
+
+      {/* 廊下の光（部屋間） */}
+      <div className="absolute left-0 right-0 opacity-[0.02]"
+        style={{ top: '38%', height: '24px', background: 'linear-gradient(90deg, transparent, #6060a0, transparent)' }} />
 
       {/* フロアヘッダー */}
       <div className="relative flex items-center gap-3 px-4 pt-2 pb-1">
-        <div className="flex items-center gap-2">
-          <div className="w-1 h-4 rounded-full" style={{ background: 'oklch(0.55 0.10 270)' }} />
-          <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: 'oklch(0.55 0.05 270)' }}>
-            Floor Plan
+        <div className="flex items-center gap-2.5">
+          {/* フロアアイコン */}
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded"
+            style={{ background: 'rgba(100,100,180,0.1)', border: '1px solid rgba(100,100,180,0.15)' }}>
+            <span className="text-[10px] font-bold" style={{ color: '#6a6aaa' }}>3F</span>
+          </div>
+          <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: 'rgba(140,140,180,0.5)' }}>
+            Main Floor
           </span>
         </div>
-        <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, oklch(0.30 0.03 270), transparent)' }} />
-        <span className="text-[10px] font-mono" style={{ color: 'oklch(0.40 0.03 270)' }}>
-          {agents.length}名在籍
-        </span>
+        <div className="flex-1 h-[1px]" style={{ background: 'linear-gradient(90deg, rgba(100,100,160,0.2), transparent)' }} />
+        <div className="flex items-center gap-3">
+          {isRunning && activeCount > 0 && (
+            <span className="text-[10px] font-bold" style={{ color: '#6ab88a' }}>
+              {activeCount}名 稼働中
+            </span>
+          )}
+          <span className="text-[10px] font-mono" style={{ color: 'rgba(140,140,180,0.35)' }}>
+            {agents.length}名在籍
+          </span>
+        </div>
       </div>
 
       {/* 部屋グリッド */}
