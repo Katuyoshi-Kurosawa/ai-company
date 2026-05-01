@@ -206,7 +206,7 @@ run_agent() {
     log "⚠️  ${agent_name} ターン上限到達（${max_turns}/${max_turns}）→ EXP付与なし ※maxTurns引き上げを検討"
   elif [ $exit_code -ne 0 ]; then
     result_status="error"
-    log "❌ ${agent_name} エラー終了（exit=$exit_code）→ EXP付与なし"
+    log "❌ ${agent_name} エラー終了（exit=${exit_code}）→ EXP付与なし"
   else
     log "✅ ${agent_name} 正常完了"
   fi
