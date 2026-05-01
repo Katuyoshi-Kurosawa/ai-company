@@ -1,10 +1,51 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { Agent } from '../types';
 import type { JobStatus, LogLine } from '../hooks/useRelay';
 import { PixelCharacter } from './PixelCharacter';
 import { FilePreviewModal } from './FilePreviewModal';
 
 const RELAY_URL = 'http://localhost:3939';
+
+// 警告エージェントの詳細ポップオーバー
+function WarningPopover({ agents }: { agents: { id: string; name: string; status: string; reason?: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const handleClickOutside = useCallback((e: MouseEvent) => {
+    if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (open) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open, handleClickOutside]);
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="text-amber-400 underline decoration-dotted cursor-pointer hover:text-amber-300 transition-colors"
+      >
+        {' '}/ {agents.length}名 警告
+      </button>
+      {open && (
+        <div className="absolute bottom-full right-0 mb-2 z-50 bg-zinc-900 border border-amber-500/40 rounded-lg shadow-2xl shadow-amber-500/10 p-3 min-w-[220px]">
+          <div className="text-[10px] font-bold text-amber-400 mb-2 flex items-center gap-1">
+            ⚠️ 警告エージェント詳細
+          </div>
+          <div className="flex flex-col gap-2">
+            {agents.map(a => (
+              <div key={a.id} className="flex flex-col gap-0.5">
+                <div className="text-[11px] font-bold text-white/90">{a.name}</div>
+                <div className="text-[9px] text-amber-300/80">{a.reason ?? '詳細不明'}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   agents: Agent[];
@@ -66,11 +107,11 @@ function formatElapsed(s: number): string {
 
 // ログから現在アクティブなエージェントと最新アクティビティを検出
 function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
-  activeAgents: { id: string; name: string; status: 'running' | 'done' | 'warning' | 'error' }[];
+  activeAgents: { id: string; name: string; status: 'running' | 'done' | 'warning' | 'error'; reason?: string }[];
   currentActivity: string;
   latestAgent: string | null;
 } {
-  const agentStates = new Map<string, 'running' | 'done' | 'warning' | 'error'>();
+  const agentStates = new Map<string, { status: 'running' | 'done' | 'warning' | 'error'; reason?: string }>();
   let currentActivity = '準備中...';
   let latestAgent: string | null = null;
 
@@ -85,7 +126,7 @@ function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
         // エージェントIDを名前からマッチ
         const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
         const key = agent?.id ?? name;
-        agentStates.set(key, 'running');
+        agentStates.set(key, { status: 'running' });
         latestAgent = key;
         currentActivity = `${name} が作業中...`;
       }
@@ -98,7 +139,7 @@ function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
         const name = match[1].trim();
         const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
         const key = agent?.id ?? name;
-        agentStates.set(key, 'done');
+        agentStates.set(key, { status: 'done' });
       }
     }
 
@@ -109,7 +150,7 @@ function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
         const name = match[1].trim();
         const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
         const key = agent?.id ?? name;
-        agentStates.set(key, 'warning');
+        agentStates.set(key, { status: 'warning', reason: 'ターン上限到達（maxTurnsを引き上げると改善可能）' });
       }
     }
 
@@ -120,18 +161,18 @@ function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
         const name = match[1].trim();
         const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
         const key = agent?.id ?? name;
-        agentStates.set(key, 'warning');
+        agentStates.set(key, { status: 'warning', reason: 'タイムアウト（応答停滞）' });
       }
     }
 
     // エラー
-    if (txt.includes('❌') && txt.includes('エ���ー終了')) {
+    if (txt.includes('❌') && txt.includes('エラー終了')) {
       const match = txt.match(/❌\s*(.+?)\s*エラー終了/);
       if (match) {
         const name = match[1].trim();
         const agent = agents.find(a => name.includes(a.name.split(' ')[0]) || name.includes(a.name));
         const key = agent?.id ?? name;
-        agentStates.set(key, 'error');
+        agentStates.set(key, { status: 'error' });
       }
     }
 
@@ -156,7 +197,7 @@ function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
   }
 
   // 現在runningなエージェントがいれば最新のアクティビティを更新
-  const running = [...agentStates.entries()].filter(([, s]) => s === 'running');
+  const running = [...agentStates.entries()].filter(([, s]) => s.status === 'running');
   if (running.length > 0) {
     const names = running.map(([key]) => {
       const agent = agents.find(a => a.id === key);
@@ -169,9 +210,9 @@ function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
     }
   }
 
-  const activeAgents = [...agentStates.entries()].map(([id, status]) => {
+  const activeAgents = [...agentStates.entries()].map(([id, { status, reason }]) => {
     const agent = agents.find(a => a.id === id);
-    return { id, name: agent?.name ?? id, status };
+    return { id, name: agent?.name ?? id, status, reason };
   });
 
   return { activeAgents, currentActivity, latestAgent };
@@ -584,7 +625,7 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
               <div className="text-[9px] text-white/40">
                 {liveStatus.activeAgents.filter(a => a.status === 'done').length}名 完了
                 {liveStatus.activeAgents.filter(a => a.status === 'warning').length > 0 && (
-                  <span className="text-amber-400"> / {liveStatus.activeAgents.filter(a => a.status === 'warning').length}名 警告</span>
+                  <WarningPopover agents={liveStatus.activeAgents.filter(a => a.status === 'warning')} />
                 )}
               </div>
             </div>
