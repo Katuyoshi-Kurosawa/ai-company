@@ -7,6 +7,19 @@ set -euo pipefail
 # ============================================================
 
 MTG_TYPE="${1:?種別を指定: kickoff|req-review|design-review|ui-review|code-review|final-review|brainstorm|custom}"
+
+# ── 多重起動防止（ロックファイル） ──────────────────────────
+LOCKFILE="/tmp/ai-mtg.lock"
+if [ -f "$LOCKFILE" ]; then
+  RUNNING_PID=$(cat "$LOCKFILE" 2>/dev/null || echo "")
+  if [ -n "$RUNNING_PID" ] && kill -0 "$RUNNING_PID" 2>/dev/null; then
+    echo "❌ エラー: ai-mtg.sh はすでに実行中です（PID: $RUNNING_PID）"
+    echo "   終了を待つか、手動で停止してください: kill $RUNNING_PID"
+    exit 1
+  fi
+fi
+echo $$ > "$LOCKFILE"
+trap 'rm -f "$LOCKFILE"' EXIT
 AGENDA="${2:?議題を指定してください}"
 ROUNDS="${3:-3}"
 CONFLICT="${4:-chair}"
@@ -49,13 +62,13 @@ notify_slack() {
 
 select_participants() {
   case "$MTG_TYPE" in
-    kickoff)       echo "ceo chief-secretary planner architect developer qa-reviewer ui-designer doc-writer marketing rd ux-research" ;;
-    req-review)    echo "ceo chief-secretary planner architect ui-designer marketing ux-research rd" ;;
+    kickoff)       echo "ceo chief-secretary secretary planner architect developer qa-reviewer ui-designer doc-writer marketing rd" ;;
+    req-review)    echo "ceo chief-secretary planner architect ui-designer marketing rd cs" ;;
     design-review) echo "architect developer ui-designer qa-reviewer chief-secretary rd" ;;
-    ui-review)     echo "ui-designer developer planner ux-research chief-secretary" ;;
+    ui-review)     echo "ui-designer developer planner chief-secretary" ;;
     code-review)   echo "developer qa-reviewer architect chief-secretary" ;;
-    final-review)  echo "ceo chief-secretary secretary planner architect developer qa-reviewer ui-designer doc-writer marketing hr pr cs rd ux-research" ;;
-    brainstorm)    echo "ceo rd marketing planner architect developer ux-research chief-secretary" ;;
+    final-review)  echo "ceo chief-secretary secretary planner architect developer qa-reviewer ui-designer doc-writer marketing hr cs rd" ;;
+    brainstorm)    echo "ceo rd marketing planner architect developer chief-secretary" ;;
     custom)        echo "ceo chief-secretary planner architect developer qa-reviewer ui-designer doc-writer" ;;
     *)             echo "ceo chief-secretary planner architect" ;;
   esac
@@ -72,13 +85,13 @@ select_chair() {
   elif echo "$agenda_lower" | grep -qE "アイデア|イノベーション|新規|ブレスト"; then
     echo "rd"
   elif echo "$agenda_lower" | grep -qE "ユーザビリティ|ペルソナ|リサーチ|調査"; then
-    echo "ux-research"
+    echo "planner"
   elif echo "$agenda_lower" | grep -qE "採用|育成|人事|スカウト|教育"; then
     echo "hr"
   elif echo "$agenda_lower" | grep -qE "顧客|サポート|cs|満足度|オンボーディング"; then
     echo "cs"
-  elif echo "$agenda_lower" | grep -qE "広報|通知|pr|ニュース"; then
-    echo "pr"
+  elif echo "$agenda_lower" | grep -qE "広報|通知|ニュース"; then
+    echo "secretary"
   elif echo "$agenda_lower" | grep -qE "要件|機能|ユーザー"; then
     echo "planner"
   elif echo "$agenda_lower" | grep -qE "設計|db|api|アーキ"; then
@@ -156,7 +169,7 @@ log "⚖️  対立解決: $CONFLICT_RULE"
 log "============================================"
 
 # ファシリテーターにMTGを進行させる
-MTG_OUTPUT=$(claude -p \
+MTG_OUTPUT=$(env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT claude -p \
   --model sonnet \
   --system-prompt "$(cat "$AGENTS_DIR/mtg-facilitator.md")" \
   --max-turns 30 \

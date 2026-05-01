@@ -10,6 +10,19 @@ set -euo pipefail
 
 THEME="${1:?テーマを指定してください。例: ./ai-company.sh \"顧客ランク別割引機能を追加したい\"}"
 
+# ── 多重起動防止（ロックファイル） ──────────────────────────
+LOCKFILE="/tmp/ai-company.lock"
+if [ -f "$LOCKFILE" ]; then
+  RUNNING_PID=$(cat "$LOCKFILE" 2>/dev/null || echo "")
+  if [ -n "$RUNNING_PID" ] && kill -0 "$RUNNING_PID" 2>/dev/null; then
+    echo "❌ エラー: ai-company.sh はすでに実行中です（PID: $RUNNING_PID）"
+    echo "   終了を待つか、手動で停止してください: kill $RUNNING_PID"
+    exit 1
+  fi
+fi
+echo $$ > "$LOCKFILE"
+trap 'rm -f "$LOCKFILE"' EXIT
+
 # ── 追加引数パース ─────────────────────────────────────────
 OVERRIDE_DEPTH=""
 OVERRIDE_AGENTS=""
