@@ -4,7 +4,6 @@ import type { RelayState } from '../hooks/useRelay';
 import { AutoTextarea } from './AutoTextarea';
 import type { FileAttachment } from './AutoTextarea';
 import type { ExecutionRecord } from '../hooks/useExecutionHistory';
-import { PixelCharacter } from './PixelCharacter';
 import { ExecutionHistory } from './ExecutionHistory';
 import { RouteSelector } from './RouteSelector';
 import { recommendRoutes } from '../lib/routeRecommender';
@@ -46,9 +45,6 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
   const [mtgRounds, setMtgRounds] = useState(3);
   const [mtgConflict, setMtgConflict] = useState('chair');
 
-  // ルート推薦用の状態
-  const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null);
-
   // テーマ入力に応じてルートを再計算
   const routes = useMemo(() => {
     if (!companyTheme.trim()) return [];
@@ -78,11 +74,6 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     onExecute(`${route.icon} ${route.label}: ${companyTheme}`, 'company', args);
   };
 
-  // ルート調整時のハンドラ（調整パネルから確定された場合）
-  const handleRouteAdjust = (route: RouteOption) => {
-    setSelectedRoute(route);
-  };
-
   // 実行履歴から再実行
   const handleRetry = (record: ExecutionRecord) => {
     if (!relay.connected) return;
@@ -98,16 +89,6 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     const label = MTG_TYPES.find(t => t.id === mtgType)?.label ?? mtgType;
     onExecute(`${label}: ${mtgAgenda}`, 'mtg', args);
   };
-
-  // サイドバーに表示するチームメンバーを決定
-  // ルートが選択されていればそのメンバー、未選択なら全員表示
-  const teamMembers = useMemo(() => {
-    if (mode !== 'company') return agents;
-    if (selectedRoute) {
-      return agents.filter(a => selectedRoute.agents.includes(a.id));
-    }
-    return agents;
-  }, [mode, selectedRoute, agents]);
 
   return (
     <div className="flex gap-6 h-full min-w-0">
@@ -154,7 +135,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
             { id: 'history' as const, icon: '📋', label: `実行履歴 (${history.length})`, desc: '過去の実行結果を閲覧' },
           ].map(m => (
             <button key={m.id}
-              onClick={() => { setMode(m.id); setSelectedRoute(null); }}
+              onClick={() => setMode(m.id)}
               className={`w-full text-left p-3 rounded-lg cursor-pointer transition-all
                 ${mode === m.id ? 'bg-indigo-500/15 ring-1 ring-indigo-400/40' : 'bg-white/5 hover:bg-white/10'}`}>
               <div className="flex items-center gap-2">
@@ -168,35 +149,6 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
           ))}
         </div>
 
-        {/* Team preview (hide in history mode) */}
-        {mode !== 'history' && (
-          <div className="rounded-xl p-4"
-            style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
-            <h3 className="text-xs font-bold opacity-40 uppercase tracking-wider mb-3">
-              {selectedRoute ? `${selectedRoute.icon} ${selectedRoute.label}チーム` : '実行チーム'}
-            </h3>
-            <div className="space-y-1">
-              {teamMembers.slice(0, 15).map(a => {
-                const modelColor = a.model === 'opus' ? 'text-amber-400 bg-amber-500/15' : a.model === 'sonnet' ? 'text-blue-400 bg-blue-500/15' : 'text-gray-400 bg-gray-500/15';
-                return (
-                  <div key={a.id} className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-white/5 transition-colors">
-                    <PixelCharacter visual={a.visual} size="sm" active={a.active} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] font-bold truncate">{a.name.split(' ')[0]}</div>
-                      <div className="text-[8px] truncate" style={{ color: theme.muted }}>{a.title}</div>
-                    </div>
-                    <span className={`text-[7px] px-1 py-0.5 rounded shrink-0 ${modelColor}`}>{a.model}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {selectedRoute && (
-              <p className="text-[10px] mt-2" style={{ color: theme.muted }}>
-                {selectedRoute.agents.length}名参加 / {selectedRoute.depth} / {selectedRoute.model}
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Right: Content area */}
@@ -227,7 +179,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
                 <label className="text-sm font-bold block mb-2">テーマ / 指示</label>
                 <AutoTextarea
                   value={companyTheme}
-                  onChange={v => { setCompanyTheme(v); setSelectedRoute(null); }}
+                  onChange={v => setCompanyTheme(v)}
                   placeholder="例: 顧客ランク別割引機能を追加したい&#10;&#10;ファイルをペースト or ドラッグ＆ドロップで添付できます"
                   minRows={3}
                   maxRows={16}
@@ -276,7 +228,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
                   routes={routes}
                   theme={theme}
                   onSelect={handleRouteSelect}
-                  onAdjust={handleRouteAdjust}
+
                 />
               )}
             </div>

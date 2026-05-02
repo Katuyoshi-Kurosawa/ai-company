@@ -9,7 +9,7 @@ interface Props {
   routes: RouteOption[];
   theme: { bg: string; surface: string; border: string; text: string; muted: string };
   onSelect: (route: RouteOption, requirementNotes?: string) => void;
-  onAdjust: (route: RouteOption) => void;
+  onAdjust?: (route: RouteOption) => void;
   onSelectPreset?: (preset: RoutePreset) => void;
 }
 
@@ -304,7 +304,7 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
 
                 {/* Apply button */}
                 <button
-                  onClick={() => onAdjust(getAdjustedRoute(route))}
+                  onClick={() => onAdjust?.(getAdjustedRoute(route))}
                   className="w-full py-2 bg-white/5 hover:bg-white/10 rounded text-xs cursor-pointer transition-colors">
                   この設定で確定
                 </button>
