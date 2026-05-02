@@ -79,7 +79,8 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     if (!relay.connected) return;
     const args = record.args as Record<string, string | number>;
     relay.execute(record.type, args);
-    onExecute(`🔄 再実行: ${record.label}`, record.type as 'company' | 'mtg', record.args);
+    const baseLabel = record.label.replace(/^(🔄\s*再実行:\s*)+/, '');
+    onExecute(`🔄 再実行: ${baseLabel}`, record.type as 'company' | 'mtg', record.args);
   };
 
   const handleMtgStart = () => {

@@ -575,7 +575,8 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
         <LiveThoughtFeed lines={lines} agents={agents} />
       )}
 
-      {/* Agent avatars row */}
+      {/* Agent avatars row — 参加者がいる場合のみ表示 */}
+      {liveStatus.activeAgents.length > 0 && (
       <div className="px-4 pb-3 flex items-center gap-1 overflow-x-auto">
         {agents.slice(0, 13).map(a => {
           const liveAgent = liveStatus.activeAgents.find(la => la.id === a.id);
@@ -650,6 +651,7 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
           )}
         </div>
       </div>
+      )}
 
       {/* Files panel */}
       {panelTab === 'files' && (
