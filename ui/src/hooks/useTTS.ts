@@ -66,6 +66,10 @@ export function useTTS(): TTSControls {
   const queueRef = useRef<TTSUtterance[]>([]);
   const isPlayingRef = useRef(false);
   const skipRef = useRef(false);
+  // 現在再生中の speakOne の resolve を保持 → stop() 時に強制解決できる
+  const activeResolveRef = useRef<(() => void) | null>(null);
+  // drainQueue の世代カウンター → stop() 後の古いループを無効化する
+  const generationRef = useRef(0);
   // settingsRef で最新の settings を非同期コールバック内から参照できるようにする
   const settingsRef = useRef(settings);
   useEffect(() => { settingsRef.current = settings; }, [settings]);
@@ -119,8 +123,11 @@ export function useTTS(): TTSControls {
       setCurrentAgentId(agentId);
       skipRef.current = false;
 
-      su.onend = () => resolve();
-      su.onerror = () => resolve();
+      // resolve を ref に保存 → stop() から強制解決できる (Chrome cancel() バグ対策)
+      const done = () => { activeResolveRef.current = null; resolve(); };
+      activeResolveRef.current = done;
+      su.onend = done;
+      su.onerror = done;
 
       window.speechSynthesis.speak(su);
     });
@@ -131,14 +138,17 @@ export function useTTS(): TTSControls {
     if (isPlayingRef.current) return;
     isPlayingRef.current = true;
     setPlaying(true);
+    const gen = generationRef.current;
 
-    while (queueRef.current.length > 0) {
+    while (queueRef.current.length > 0 && generationRef.current === gen) {
       const utt = queueRef.current.shift()!;
       setQueueLength(queueRef.current.length);
       if (skipRef.current) { skipRef.current = false; continue; }
       await speakOne(utt, vol);
     }
 
+    // 世代が変わっていたら stop() が呼ばれたので state 更新はスキップ
+    if (generationRef.current !== gen) return;
     isPlayingRef.current = false;
     setPlaying(false);
     setPaused(false);
@@ -150,7 +160,10 @@ export function useTTS(): TTSControls {
   const speak = useCallback((utterances: TTSUtterance[], sourceId?: string) => {
     if (!('speechSynthesis' in window)) return;
     if (!settingsRef.current.enabled) return;
+    generationRef.current++;
     window.speechSynthesis.cancel();
+    activeResolveRef.current?.();
+    activeResolveRef.current = null;
     isPlayingRef.current = false;
     queueRef.current = [...utterances];
     setQueueLength(utterances.length);
@@ -177,7 +190,10 @@ export function useTTS(): TTSControls {
   }, []);
 
   const stop = useCallback(() => {
+    generationRef.current++;           // drainQueue ループを無効化
     window.speechSynthesis.cancel();
+    activeResolveRef.current?.();      // speakOne の詰まりを強制解決
+    activeResolveRef.current = null;
     queueRef.current = [];
     isPlayingRef.current = false;
     setPlaying(false);
