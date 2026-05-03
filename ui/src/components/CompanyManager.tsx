@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type { Company, ThemeType } from '../types';
 import { THEMES } from '../data/constants';
+import { useTTSContext } from '../context/TTSContext';
+
+declare const __BUILD_TIME__: string;
 
 interface Props {
   companies: Company[];
@@ -18,6 +21,7 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
   const [industry, setIndustry] = useState('');
   const [icon, setIcon] = useState('🏢');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const tts = useTTSContext();
 
   const handleAdd = () => {
     if (!name.trim()) return;
@@ -91,6 +95,109 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
             {t.icon} {t.label}
           </button>
         ))}
+      </div>
+
+      {/* TTS Settings */}
+      {tts.state.available && (
+        <div className="p-4 bg-white/5 rounded-lg space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold">音声読み上げ (TTS)</h3>
+            <button
+              onClick={() => tts.updateSettings({ enabled: !tts.settings.enabled })}
+              className={`relative inline-flex w-10 h-5 rounded-full transition-colors cursor-pointer ${
+                tts.settings.enabled ? 'bg-indigo-500' : 'bg-white/20'
+              }`}
+              aria-label={tts.settings.enabled ? 'TTS無効化' : 'TTS有効化'}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                tts.settings.enabled ? 'translate-x-5' : 'translate-x-0'
+              }`} />
+            </button>
+          </div>
+
+          {tts.settings.enabled && (
+            <div className="space-y-3">
+              {/* Volume */}
+              <div>
+                <label className="text-xs opacity-40 block mb-1">
+                  音量: {Math.round(tts.settings.volume * 100)}%
+                </label>
+                <input
+                  type="range" min="0" max="1" step="0.05"
+                  value={tts.settings.volume}
+                  onChange={e => tts.updateSettings({ volume: Number(e.target.value) })}
+                  className="w-full accent-indigo-400"
+                />
+              </div>
+
+              {/* Female voice */}
+              <div>
+                <label className="text-xs opacity-40 block mb-1">女性の声</label>
+                <select
+                  value={tts.settings.femaleVoiceName ?? ''}
+                  onChange={e => tts.updateSettings({ femaleVoiceName: e.target.value || null })}
+                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-xs"
+                >
+                  <option value="">自動 (Kyoko / Haruka)</option>
+                  {tts.availableVoices.map(v => (
+                    <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Male voice */}
+              <div>
+                <label className="text-xs opacity-40 block mb-1">男性の声</label>
+                <select
+                  value={tts.settings.maleVoiceName ?? ''}
+                  onChange={e => tts.updateSettings({ maleVoiceName: e.target.value || null })}
+                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-xs"
+                >
+                  <option value="">自動 (Otoya / Ichiro)</option>
+                  {tts.availableVoices.map(v => (
+                    <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
+                  ))}
+                </select>
+              </div>
+
+              <p className="text-[10px] opacity-30 leading-relaxed">
+                声はブラウザが提供するシステム音声を使用します。
+                macOS: Kyoko（女）/ Otoya（男）、Windows: Haruka / Ichiro
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Version & Update */}
+      <div className="p-4 bg-white/5 rounded-lg space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-xs opacity-40">ビルドバージョン</span>
+            <div className="text-sm font-mono mt-0.5">
+              {typeof __BUILD_TIME__ !== 'undefined'
+                ? new Date(__BUILD_TIME__).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
+                : 'dev'}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(regs => {
+                  regs.forEach(r => r.unregister());
+                });
+              }
+              if ('caches' in window) {
+                caches.keys().then(keys => {
+                  keys.forEach(k => caches.delete(k));
+                });
+              }
+              setTimeout(() => location.reload(), 300);
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/15 text-emerald-400 rounded-lg hover:bg-emerald-500/25 cursor-pointer text-sm font-medium transition-colors ring-1 ring-emerald-400/30">
+            <span>↻</span> 最新版に更新
+          </button>
+        </div>
       </div>
 
       {/* Delete */}

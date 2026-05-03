@@ -3,6 +3,7 @@ import type { Agent } from '../types';
 import type { JobStatus, LogLine } from '../hooks/useRelay';
 import { PixelCharacter } from './PixelCharacter';
 import { FilePreviewModal } from './FilePreviewModal';
+import { useTTSContext } from '../context/TTSContext';
 
 const RELAY_URL = 'http://localhost:3939';
 
@@ -423,9 +424,35 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
   const [panelTab, setPanelTab] = useState<'none' | 'log' | 'files'>('none');
   const [files, setFiles] = useState<{ name: string; size: number }[]>([]);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
+  const [ttsLogEnabled, setTtsLogEnabled] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const ttsReadIndexRef = useRef(0);
+  const tts = useTTSContext();
   const { phase, progress } = detectPhase(lines);
   const liveStatus = detectLiveStatus(lines, agents);
+
+  // リアルタイムログTTS: 新着行をキューに追加
+  useEffect(() => {
+    if (!ttsLogEnabled || !tts.state.available) return;
+    const newLines = lines.slice(ttsReadIndexRef.current);
+    if (newLines.length === 0) return;
+    ttsReadIndexRef.current = lines.length;
+    // システムノイズ行は除外して読み上げ
+    const NOISE = /^(\s*$|╔|╚|║|─|━|═|┌|└|│|├|╭|╰|\[[\d:]+\]\s*$)/;
+    const utterances = newLines
+      .filter(l => !NOISE.test(l.text) && l.text.trim().length > 3)
+      .map(l => ({
+        text: l.text.replace(/^\[[\d:]+\]\s*/, ''),
+        agentId: undefined as string | undefined,
+      }));
+    if (utterances.length > 0) tts.append(utterances);
+  }, [lines.length, ttsLogEnabled, tts]);
+
+  // TTS無効化時はキューをクリア
+  useEffect(() => {
+    if (!ttsLogEnabled) { tts.stop(); ttsReadIndexRef.current = lines.length; }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ttsLogEnabled]);
 
   const isDone = status === 'done';
   const isError = status === 'error';
@@ -505,6 +532,19 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* TTS読み上げトグル */}
+          {tts.state.available && isRunning && (
+            <button
+              onClick={() => setTtsLogEnabled(v => !v)}
+              title={ttsLogEnabled ? 'ログ読み上げ停止' : 'ログを読み上げ'}
+              className={`px-2.5 py-1 rounded text-[10px] cursor-pointer transition-colors ${
+                ttsLogEnabled
+                  ? 'bg-indigo-500/30 text-indigo-300 ring-1 ring-indigo-400/40'
+                  : 'bg-white/10 hover:bg-white/20 text-white/60'
+              }`}>
+              {ttsLogEnabled ? '🔊 読み上げ中' : '🔇 読み上げ'}
+            </button>
+          )}
           {/* 成果物ボタン（完了時のみ） */}
           {isDone && files.length > 0 && (
             <button onClick={() => setPanelTab(panelTab === 'files' ? 'none' : 'files')}

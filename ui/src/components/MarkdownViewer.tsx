@@ -1,16 +1,27 @@
 import { useMemo } from 'react';
+import { TTSButton } from './TTSButton';
+import { stripToPlain } from '../config/agentVoices';
 
 interface Props {
   content: string;
   className?: string;
+  ttsAgentId?: string;
 }
 
 // シンプルなMarkdownレンダラー（外部ライブラリ不使用）
-export function MarkdownViewer({ content, className = '' }: Props) {
+export function MarkdownViewer({ content, className = '', ttsAgentId }: Props) {
   const rendered = useMemo(() => renderMarkdown(content), [content]);
 
   return (
-    <div className={`markdown-viewer space-y-2 text-sm leading-relaxed ${className}`}>
+    <div className={`relative markdown-viewer space-y-2 text-sm leading-relaxed ${className}`}>
+      {ttsAgentId !== undefined && (
+        <div className="absolute top-0 right-0 z-10">
+          <TTSButton
+            getUtterances={() => [{ text: stripToPlain(content), agentId: ttsAgentId || undefined }]}
+            label="報告書を読み上げ"
+          />
+        </div>
+      )}
       {rendered}
       <style>{`
         .markdown-viewer h1 { font-size: 1.5rem; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #e2e8f0; }

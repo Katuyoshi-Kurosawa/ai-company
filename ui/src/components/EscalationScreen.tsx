@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Agent, Consultation } from '../types';
 import { PixelCharacter } from './PixelCharacter';
+import { TTSButton } from './TTSButton';
 
 interface Props {
   agents: Agent[];
@@ -150,13 +151,24 @@ export function EscalationScreen({ agents, theme }: Props) {
               const isSelected = selected?.id === c.id;
 
               return (
-                <button key={c.id}
+                <div key={c.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelect(c)}
+                  onKeyDown={e => e.key === 'Enter' && handleSelect(c)}
                   className={`w-full text-left p-3 rounded-lg cursor-pointer transition-all
                     ${isSelected ? 'bg-indigo-500/10 ring-1 ring-indigo-400/30' : 'bg-white/5 hover:bg-white/10'}`}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">{type.icon}</span>
                     <span className="text-sm font-bold flex-1">{c.subject}</span>
+                    <TTSButton
+                      getUtterances={() => [
+                        { text: `${type.label}。件名: ${c.subject}。`, agentId: c.from },
+                        { text: `緊急度${urgency.label}。${fromAgent?.name}から${toAgent?.name}への相談。ステータス: ${status.label}。`, agentId: c.to },
+                      ]}
+                      label="読み上げ"
+                      className="shrink-0"
+                    />
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${urgency.color}`}>{urgency.label}</span>
                     <span className={`text-xs font-bold ${status.color}`}>{status.label}</span>
                   </div>
@@ -166,7 +178,7 @@ export function EscalationScreen({ agents, theme }: Props) {
                     <span>{toAgent?.icon} {toAgent?.name}</span>
                     <span className="ml-auto">{new Date(c.timestamp).toLocaleString('ja-JP')}</span>
                   </div>
-                </button>
+                </div>
               );
             })
           )}
