@@ -25,6 +25,7 @@ import { BackgroundJobIndicator } from './components/BackgroundJobIndicator';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { TTSProvider } from './context/TTSContext';
 import { TTSBar } from './components/TTSBar';
+import { Breadcrumb } from './components/Breadcrumb';
 
 declare const __BUILD_TIME__: string;
 
@@ -321,6 +322,26 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {/* Breadcrumb */}
+      {(() => {
+        const currentNav = NAV_ITEMS.find(n => n.id === view);
+        const items: { label: string; icon?: string; onClick?: () => void }[] = [
+          { label: company.name, icon: company.icon, onClick: () => setView('office') },
+          { label: currentNav?.label ?? view, icon: currentNav?.icon },
+        ];
+        // サブコンテキスト: 実行中のラベル（指示室）
+        if (view === 'command' && executing && executionLabel) {
+          items.push({ label: executionLabel });
+        }
+        // サブコンテキスト: 選択中エージェント（組織図）
+        if (view === 'org' && selectedAgent) {
+          items.push({ label: selectedAgent.name });
+        }
+        // トップ（オフィス）ではホームのみ表示
+        if (view === 'office') items.splice(1);
+        return <Breadcrumb items={items} />;
+      })()}
 
       {/* Main */}
       <div className="flex-1 flex min-h-0 min-w-0">
