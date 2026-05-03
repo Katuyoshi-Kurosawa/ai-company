@@ -11,6 +11,14 @@
   --color-corp-gold: #d4a843;
   --color-corp-success: #22c55e;
   --color-corp-danger: #ef4444;
+
+  /* セマンティックカラー — bg-primary, text-success 等で使用 */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-info: #6366f1;
 }
 
 /* Animations */
