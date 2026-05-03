@@ -23,6 +23,8 @@ import { ExecutionPanel, ExecutionIndicator } from './components/ExecutionPanel'
 import { QuickInputBar, CommandPalette } from './components/QuickCommand';
 import { BackgroundJobIndicator } from './components/BackgroundJobIndicator';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { TTSProvider } from './context/TTSContext';
+import { TTSBar } from './components/TTSBar';
 
 declare const __BUILD_TIME__: string;
 
@@ -208,6 +210,7 @@ export default function App() {
   const activeCount = company.agents.filter(a => a.active).length;
 
   return (
+    <TTSProvider>
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: theme.bg, color: theme.text }}>
       {/* Running indicator stripe */}
       {isRunning && (
@@ -487,6 +490,9 @@ export default function App() {
           stalled={relay.stalled}
         />
       )}
+
+      <TTSBar agents={company.agents} />
     </div>
+    </TTSProvider>
   );
 }
