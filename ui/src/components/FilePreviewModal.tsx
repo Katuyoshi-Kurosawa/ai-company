@@ -108,7 +108,7 @@ export function FilePreviewModal({ filePath, onClose }: Props) {
           )}
           {content !== null && !loading && (
             fileName.endsWith('.md') ? (
-              <MarkdownViewer content={content} />
+              <MarkdownViewer content={content} ttsAgentId="" />
             ) : (
               <pre className="text-xs text-green-300/80 font-mono whitespace-pre-wrap break-all">
                 {content}
