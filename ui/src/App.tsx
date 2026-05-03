@@ -22,6 +22,7 @@ import { CommandCenter } from './components/CommandCenter';
 import { ExecutionPanel, ExecutionIndicator } from './components/ExecutionPanel';
 import { QuickInputBar, CommandPalette } from './components/QuickCommand';
 import { BackgroundJobIndicator } from './components/BackgroundJobIndicator';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 declare const __BUILD_TIME__: string;
 
@@ -322,6 +323,7 @@ export default function App() {
       <div className="flex-1 flex min-h-0 min-w-0">
         <main className={`flex-1 min-w-0 overflow-auto ${executing ? 'pb-32' : ''}`}>
           {view === 'office' && (
+            <ErrorBoundary name="オフィス">
             <div className="h-full">
               <OfficeView
                 agents={company.agents}
@@ -339,9 +341,11 @@ export default function App() {
                 onTriggerSpeech={officeActivity.triggerSpeech}
               />
             </div>
+            </ErrorBoundary>
           )}
 
           {view === 'org' && (
+            <ErrorBoundary name="組織図">
             <div className="flex gap-5 p-5">
               <aside className="w-60 shrink-0">
                 <ScoreBoard agents={company.agents} onSelect={setSelectedAgent} />
@@ -351,15 +355,19 @@ export default function App() {
                   mission={isLive ? mission : undefined} elapsed={isLive ? relay.elapsed : undefined} />
               </div>
             </div>
+            </ErrorBoundary>
           )}
 
           {view === 'mtg' && (
+            <ErrorBoundary name="会議室">
             <div className="p-5" style={{ minHeight: 'calc(100vh - 120px)' }}>
               <MtgScreen agents={company.agents} theme={theme} />
             </div>
+            </ErrorBoundary>
           )}
 
           {view === 'command' && (
+            <ErrorBoundary name="指示室">
             <div className="p-5" style={{ minHeight: 'calc(100vh - 120px)' }}>
               <CommandCenter
                 agents={company.agents}
@@ -394,15 +402,19 @@ export default function App() {
                 onClearHistory={execHistory.clearAll}
               />
             </div>
+            </ErrorBoundary>
           )}
 
           {view === 'escalation' && (
+            <ErrorBoundary name="報告">
             <div className="p-5" style={{ minHeight: 'calc(100vh - 120px)' }}>
               <EscalationScreen agents={company.agents} theme={theme} />
             </div>
+            </ErrorBoundary>
           )}
 
           {view === 'settings' && (
+            <ErrorBoundary name="管理">
             <div className="p-5">
               <CompanyManager
                 companies={store.companies}
@@ -414,6 +426,7 @@ export default function App() {
                 currentTheme={company.theme}
               />
             </div>
+            </ErrorBoundary>
           )}
         </main>
       </div>
