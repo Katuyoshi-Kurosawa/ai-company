@@ -29,6 +29,7 @@ export interface TTSState {
   playing: boolean;
   paused: boolean;
   currentAgentId: string | null;
+  currentSourceId: string | null;
   queueLength: number;
 }
 
@@ -36,7 +37,7 @@ export interface TTSControls {
   state: TTSState;
   settings: TTSSettings;
   availableVoices: SpeechSynthesisVoice[];
-  speak(utterances: TTSUtterance[]): void;
+  speak(utterances: TTSUtterance[], sourceId?: string): void;
   append(utterances: TTSUtterance[]): void;
   pause(): void;
   resume(): void;
@@ -50,6 +51,7 @@ export function useTTS(): TTSControls {
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
   const [currentAgentId, setCurrentAgentId] = useState<string | null>(null);
+  const [currentSourceId, setCurrentSourceId] = useState<string | null>(null);
   const [queueLength, setQueueLength] = useState(0);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [settings, setSettings] = useState<TTSSettings>(() => {
@@ -141,16 +143,18 @@ export function useTTS(): TTSControls {
     setPlaying(false);
     setPaused(false);
     setCurrentAgentId(null);
+    setCurrentSourceId(null);
     setQueueLength(0);
   }, [speakOne]);
 
-  const speak = useCallback((utterances: TTSUtterance[]) => {
+  const speak = useCallback((utterances: TTSUtterance[], sourceId?: string) => {
     if (!('speechSynthesis' in window)) return;
     if (!settingsRef.current.enabled) return;
     window.speechSynthesis.cancel();
     isPlayingRef.current = false;
     queueRef.current = [...utterances];
     setQueueLength(utterances.length);
+    setCurrentSourceId(sourceId ?? null);
     drainQueue(settingsRef.current.volume);
   }, [drainQueue]);
 
@@ -179,6 +183,7 @@ export function useTTS(): TTSControls {
     setPlaying(false);
     setPaused(false);
     setCurrentAgentId(null);
+    setCurrentSourceId(null);
     setQueueLength(0);
   }, []);
 
@@ -188,7 +193,7 @@ export function useTTS(): TTSControls {
   }, []);
 
   return {
-    state: { available, playing, paused, currentAgentId, queueLength },
+    state: { available, playing, paused, currentAgentId, currentSourceId, queueLength },
     settings,
     availableVoices,
     speak,

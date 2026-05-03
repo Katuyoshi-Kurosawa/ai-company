@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTTSContext } from '../context/TTSContext';
 import type { TTSUtterance } from '../hooks/useTTS';
 
@@ -9,16 +10,18 @@ interface Props {
 
 export function TTSButton({ getUtterances, label = '読み上げ', className = '' }: Props) {
   const tts = useTTSContext();
+  const id = useId();
 
   if (!tts.state.available) return null;
 
-  const isThisPlaying = tts.state.playing;
+  // 自分が起動した再生かどうかを判別
+  const isThisPlaying = tts.state.playing && tts.state.currentSourceId === id;
 
   const handleClick = () => {
     if (isThisPlaying) {
       tts.stop();
     } else {
-      tts.speak(getUtterances());
+      tts.speak(getUtterances(), id);
     }
   };
 
