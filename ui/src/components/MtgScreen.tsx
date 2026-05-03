@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { Agent } from '../types';
 import { PixelCharacter } from './PixelCharacter';
+import { TTSButton } from './TTSButton';
+import type { TTSUtterance } from '../hooks/useTTS';
 
 interface MtgConfig {
   type: string;
@@ -313,11 +315,22 @@ export function MtgScreen({ agents, theme }: Props) {
                   ラウンド: {config.rounds}
                 </p>
               </div>
-              <button
-                onClick={() => { setPhase('config'); setMessages([]); }}
-                className="px-3 py-1.5 bg-white/10 rounded text-xs hover:bg-white/20 cursor-pointer">
-                新規MTG
-              </button>
+              <div className="flex items-center gap-2">
+                {messages.length > 0 && (
+                  <TTSButton
+                    getUtterances={() => messages.map((m): TTSUtterance => ({
+                      text: m.text,
+                      agentId: m.agentId,
+                    }))}
+                    label="議事録を読む"
+                  />
+                )}
+                <button
+                  onClick={() => { setPhase('config'); setMessages([]); }}
+                  className="px-3 py-1.5 bg-white/10 rounded text-xs hover:bg-white/20 cursor-pointer">
+                  新規MTG
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
