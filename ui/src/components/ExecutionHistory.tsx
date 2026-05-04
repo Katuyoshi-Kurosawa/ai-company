@@ -406,6 +406,33 @@ function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
   const r = record;
   const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'files' | 'review'>(r.review ? 'review' : 'overview');
   const [dynamicFileInfos, setDynamicFileInfos] = useState<FileInfo[]>([]);
+  const [slackState, setSlackState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const slackWebhook = localStorage.getItem('ai-company-slack-webhook') ?? '';
+
+  const handleSlackSend = async () => {
+    if (!slackWebhook || !r.outputDir) return;
+    setSlackState('sending');
+    try {
+      const reportPath = `${r.outputDir}/secretary-report.md`;
+      const res = await fetch(`http://localhost:3939/file?path=${encodeURIComponent(reportPath)}`);
+      const data = await res.json();
+      const content: string = data.content ?? '（レポートが見つかりませんでした）';
+      const themeText = String((r.args as Record<string, unknown>).theme ?? r.label ?? '').split('\n')[0].slice(0, 100);
+      const preview = content.slice(0, 2800);
+      const text = `*AI会社 最終報告書*\nテーマ: ${themeText}\n実行日時: ${formatDate(r.startedAt)}\n\n${preview}${content.length > 2800 ? '\n\n_（続きは省略）_' : ''}`;
+      const sendRes = await fetch('http://localhost:3939/slack-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: slackWebhook, text }),
+      });
+      if (!sendRes.ok) throw new Error('send failed');
+      setSlackState('sent');
+      setTimeout(() => setSlackState('idle'), 3000);
+    } catch {
+      setSlackState('error');
+      setTimeout(() => setSlackState('idle'), 3000);
+    }
+  };
 
   // fileInfosが無い既存データ用: ファイルタブ表示時にメタ情報を動的取得
   useEffect(() => {
@@ -461,6 +488,21 @@ function DetailPanel({ record, onDelete, onRetry, onPreview, theme }: {
               <button onClick={onRetry}
                 className="text-[10px] px-2 py-1 bg-indigo-500/15 text-indigo-400 rounded hover:bg-indigo-500/25 cursor-pointer transition-colors font-bold">
                 🔄 再実行
+              </button>
+            )}
+            {slackWebhook && r.outputDir && r.status === 'done' && (
+              <button
+                onClick={handleSlackSend}
+                disabled={slackState === 'sending'}
+                className={`text-[10px] px-2 py-1 rounded cursor-pointer transition-colors font-bold disabled:opacity-50 ${
+                  slackState === 'sent' ? 'bg-green-500/20 text-green-400' :
+                  slackState === 'error' ? 'bg-red-500/20 text-red-400' :
+                  'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'
+                }`}>
+                {slackState === 'sending' ? '送信中...' :
+                 slackState === 'sent' ? '✓ 送信済み' :
+                 slackState === 'error' ? '✗ 失敗' :
+                 '💬 Slack送信'}
               </button>
             )}
             <button onClick={onDelete}
