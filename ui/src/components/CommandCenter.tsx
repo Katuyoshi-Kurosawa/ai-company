@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Agent } from '../types';
 import type { RelayState } from '../hooks/useRelay';
 import { AutoTextarea } from './AutoTextarea';
@@ -44,6 +44,12 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
   const [mtgAgenda, setMtgAgenda] = useState('');
   const [mtgRounds, setMtgRounds] = useState(3);
   const [mtgConflict, setMtgConflict] = useState('chair');
+  const [sendToSlack, setSendToSlack] = useState(false);
+  const [slackWebhook, setSlackWebhook] = useState('');
+
+  useEffect(() => {
+    setSlackWebhook(localStorage.getItem('ai-company-slack-webhook') ?? '');
+  }, []);
 
   // テーマ入力に応じてルートを再計算
   const routes = useMemo(() => {
@@ -62,7 +68,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     const theme_with_notes = requirementNotes
       ? `${fullTheme}\n\n【要件ポイント】\n${requirementNotes}`
       : fullTheme;
-    const args = {
+    const args: Record<string, string | number | string[]> = {
       theme: theme_with_notes,
       routeType: route.type,
       depth: route.depth,
@@ -70,7 +76,8 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
       model: route.model,
       maxTurns: route.maxTurns,
     };
-    relay.execute('company', args);
+    if (sendToSlack && slackWebhook) args.slackWebhook = slackWebhook;
+    relay.execute('company', args as Record<string, string | number>);
     onExecute(`${route.icon} ${route.label}: ${companyTheme}`, 'company', args);
   };
 
@@ -222,6 +229,29 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
                 </div>
               )}
 
+              {/* Slack送信オプション（webhook設定済みの場合のみ表示） */}
+              {slackWebhook && companyTheme.trim() && (
+                <div className="flex items-center gap-3 p-3 rounded-lg"
+                  style={{ background: sendToSlack ? 'rgba(79,70,229,0.1)' : 'rgba(255,255,255,0.04)', border: `1px solid ${sendToSlack ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)'}` }}>
+                  <button
+                    onClick={() => setSendToSlack(v => !v)}
+                    className={`relative inline-flex w-9 h-5 rounded-full transition-colors cursor-pointer shrink-0 ${sendToSlack ? 'bg-indigo-500' : 'bg-white/20'}`}
+                    aria-label="Slackに送信"
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${sendToSlack ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium flex items-center gap-2">
+                      <span>完了後にSlackへ送信</span>
+                      {sendToSlack && <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded">ON</span>}
+                    </div>
+                    <div className="text-[10px] opacity-40 mt-0.5">
+                      最終報告書（secretary-report.md）をSlackに送信します
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* テーマ入力済みならRouteSelector表示 */}
               {companyTheme.trim() && routes.length > 0 && (
                 <RouteSelector
@@ -229,7 +259,6 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
                   routes={routes}
                   theme={theme}
                   onSelect={handleRouteSelect}
-
                 />
               )}
             </div>

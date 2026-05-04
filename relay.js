@@ -6,6 +6,7 @@
 // ============================================================
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -417,6 +418,31 @@ const server = http.createServer(async (req, res) => {
       stalled: j.stalled || false,
     }));
     return json(res, 200, list);
+  }
+
+  // Slack送信プロキシ（ブラウザからのCORSを回避）
+  if (url.pathname === '/slack-send' && req.method === 'POST') {
+    const body = await readBody(req);
+    const { webhookUrl, text } = body;
+    if (!webhookUrl || !text) return json(res, 400, { error: 'webhookUrl and text required' });
+    try {
+      const parsed = new URL(webhookUrl);
+      if (parsed.protocol !== 'https:') return json(res, 400, { error: 'Only https webhook URLs are supported' });
+      const payload = JSON.stringify({ text });
+      await new Promise((resolve, reject) => {
+        const req2 = https.request(
+          { hostname: parsed.hostname, path: parsed.pathname + parsed.search, method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) } },
+          (r) => { r.resume(); r.on('end', resolve); }
+        );
+        req2.on('error', reject);
+        req2.write(payload);
+        req2.end();
+      });
+      return json(res, 200, { ok: true });
+    } catch (e) {
+      return json(res, 500, { error: String(e) });
+    }
   }
 
   json(res, 404, { error: 'Not found' });

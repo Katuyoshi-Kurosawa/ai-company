@@ -22,6 +22,16 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
   const [icon, setIcon] = useState('🏢');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const tts = useTTSContext();
+  const [slackWebhook, setSlackWebhook] = useState(
+    () => localStorage.getItem('ai-company-slack-webhook') ?? ''
+  );
+  const [slackSaved, setSlackSaved] = useState(false);
+
+  const handleSaveSlack = () => {
+    localStorage.setItem('ai-company-slack-webhook', slackWebhook);
+    setSlackSaved(true);
+    setTimeout(() => setSlackSaved(false), 2000);
+  };
 
   const handleAdd = () => {
     if (!name.trim()) return;
@@ -95,6 +105,42 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
             {t.icon} {t.label}
           </button>
         ))}
+      </div>
+
+      {/* Slack Settings */}
+      <div className="p-4 bg-white/5 rounded-lg space-y-3">
+        <h3 className="text-sm font-bold">Slack通知</h3>
+        <p className="text-xs opacity-40 leading-relaxed">
+          実行完了後に最終報告書をSlackへ送信できます。<br />
+          Incoming Webhook URLを設定してください。
+        </p>
+        <div>
+          <label className="text-xs opacity-40 block mb-1">Webhook URL</label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={slackWebhook}
+              onChange={e => setSlackWebhook(e.target.value)}
+              placeholder="https://hooks.slack.com/services/..."
+              className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-1.5 text-xs font-mono"
+            />
+            <button
+              onClick={handleSaveSlack}
+              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer ${
+                slackSaved
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
+              }`}
+            >
+              {slackSaved ? '保存済み' : '保存'}
+            </button>
+          </div>
+        </div>
+        {slackWebhook && (
+          <p className="text-[10px] text-green-400/70">
+            Webhook URL設定済み。指示室の実行時に「Slackに送信」オプションが表示されます。
+          </p>
+        )}
       </div>
 
       {/* TTS Settings */}

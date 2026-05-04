@@ -108,6 +108,33 @@ export default function App() {
     }
   }, [executing, isRunning]);
 
+  // 実行完了時にSlack送信
+  useEffect(() => {
+    const wasRunning = prevStatus.current === 'running' || prevStatus.current === 'connecting';
+    if (wasRunning && relay.status === 'done') {
+      const slackWebhook = String(currentExecutionArgsRef.current.slackWebhook ?? '');
+      if (slackWebhook && outputDir) {
+        const reportPath = `${outputDir}/secretary-report.md`;
+        (async () => {
+          try {
+            const res = await fetch(`http://localhost:3939/file?path=${encodeURIComponent(reportPath)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const content: string = data.content ?? '';
+            const theme = String(currentExecutionArgsRef.current.theme ?? '').split('\n')[0].slice(0, 100);
+            const preview = content.slice(0, 2800);
+            const text = `*AI会社 最終報告書*\nテーマ: ${theme}\n\n${preview}${content.length > 2800 ? '\n\n_（続きは省略）_' : ''}`;
+            await fetch('http://localhost:3939/slack-send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ webhookUrl: slackWebhook, text }),
+            });
+          } catch { /* ignore */ }
+        })();
+      }
+    }
+  }, [relay.status, outputDir]);
+
   // 実行完了時に履歴を保存
   useEffect(() => {
     const wasRunning = prevStatus.current === 'running' || prevStatus.current === 'connecting';
