@@ -282,8 +282,8 @@ const server = http.createServer(async (req, res) => {
     switch (type) {
       case 'company':
         cmd = './ai-company.sh';
-        cmdArgs = [args.theme || ''];
-        // 拡張パラメータがあれば環境変数で渡す
+        // テーマは環境変数で渡す（shell:true時の改行・スペースによる引数分割を防止）
+        cmdArgs = [];
         if (args.depth) cmdArgs.push('--depth', args.depth);
         if (args.agents) cmdArgs.push('--agents', args.agents);
         if (args.model) cmdArgs.push('--model', args.model);
@@ -316,11 +316,17 @@ const server = http.createServer(async (req, res) => {
     };
     jobs.set(id, job);
 
+    const spawnEnv = { ...process.env, FORCE_COLOR: '0' };
+    // テーマを環境変数で渡す（改行・特殊文字を安全に扱うため）
+    if (type === 'company' && args.theme) {
+      spawnEnv.AI_COMPANY_THEME = String(args.theme);
+    }
+
     const proc = spawn(cmd, cmdArgs, {
       cwd: PROJECT_DIR,
       shell: true,
       detached: true, // プロセスグループ作成（グループkill用）
-      env: { ...process.env, FORCE_COLOR: '0' },
+      env: spawnEnv,
     });
     job.proc = proc;
 

@@ -8,7 +8,12 @@ set -euo pipefail
 # Usage: ./ai-company.sh "テーマ"
 # ============================================================
 
-THEME="${1:?テーマを指定してください。例: ./ai-company.sh \"顧客ランク別割引機能を追加したい\"}"
+# テーマ: 環境変数優先（relay.jsからの呼び出し時）、次にコマンドライン引数
+if [ -n "${AI_COMPANY_THEME:-}" ]; then
+  THEME="$AI_COMPANY_THEME"
+else
+  THEME="${1:?テーマを指定してください。例: ./ai-company.sh \"顧客ランク別割引機能を追加したい\"}"
+fi
 
 # ── 多重起動防止（ロックファイル） ──────────────────────────
 LOCKFILE="/tmp/ai-company.lock"
@@ -30,7 +35,10 @@ OVERRIDE_MODEL=""
 OVERRIDE_MAX_TURNS=""
 ROUTE_TYPE=""
 
-shift  # $1 (THEME) をスキップ
+# 環境変数でテーマを渡した場合は $1 をスキップしない
+if [ -z "${AI_COMPANY_THEME:-}" ] && [ $# -gt 0 ]; then
+  shift  # $1 (THEME) をスキップ
+fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --depth) OVERRIDE_DEPTH="$2"; shift 2 ;;
@@ -480,18 +488,37 @@ if [ "$THEME_WEIGHT" = "lightweight" ]; then
   log ""
   log "━━━ 軽量モード: CEO秘書が応答 ━━━"
 
-  run_agent "secretary" "
+  # ROUTE_TYPE が設定されている = ユーザーが意図的に「即答」ルートを選択した実指示
+  # ROUTE_TYPE が空 = classify_theme() が挨拶・雑談と判定した軽量リクエスト
+  if [ -n "${ROUTE_TYPE:-}" ]; then
+    SECRETARY_PROMPT="
+テーマ: $THEME
+
+オーナー（ユーザー）から上記の指示がありました。
+「即答」モードで迅速かつ簡潔に対応してください。
+
+秘書として適切に応答し、$PROJECT_DIR/secretary-report.md に出力してください。
+※ファイル出力は1回で完了させること。
+- 指示の内容に直接応答する（回答・情報整理・文章作成など）
+- 不明点は自分の判断で合理的な仮定をおいて進める
+- 簡潔・明瞭に。余分な前置きは不要
+"
+  else
+    SECRETARY_PROMPT="
 テーマ: $THEME
 
 オーナー（ユーザー）から上記のメッセージがありました。
-これはプロジェクト指示ではなく、挨拶や簡単なやりとりです。
+これは挨拶や簡単なやりとりです。
 
 秘書として適切に応答し、$PROJECT_DIR/secretary-report.md に出力してください。
 ※ファイル出力は1回で完了させること。
 - 社長や社員の近況を交えた温かい返答
 - 必要に応じて本日の予定や進行中の案件を簡潔に報告
 - 何かプロジェクト指示があればお気軽にどうぞ、と添える
-" "haiku" "5" "60"
+"
+  fi
+
+  run_agent "secretary" "$SECRETARY_PROMPT" "haiku" "5" "60"
   add_exp "secretary" 10 "軽量応答"
 
   PROJECT_END=$(date +%s)
