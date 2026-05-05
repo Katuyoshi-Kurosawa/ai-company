@@ -63,6 +63,79 @@ const DEFAULT_PARTICIPANTS: Record<string, string[]> = {
   'custom': ['ceo', 'planner', 'architect', 'developer', 'qa-reviewer', 'ui-designer', 'doc-writer'],
 };
 
+function getMtgTypeIcon(type: string): string {
+  const icons: Record<string, string> = {
+    kickoff: '🚀', 'req-review': '📋', 'design-review': '🏗️',
+    'ui-review': '🎨', 'code-review': '💻', 'final-review': '✅',
+    brainstorm: '💡', custom: '⚙️',
+  };
+  return icons[type] ?? '📋';
+}
+
+function getConflictLabel(conflict: string): string {
+  const labels: Record<string, string> = {
+    chair: '議長判断', majority: '多数決', consensus: '全員合意', both: '両論併記',
+  };
+  return labels[conflict] ?? conflict;
+}
+
+function MtgPreviewPanel({
+  config, agents, onStart, theme,
+}: {
+  config: MtgConfig;
+  agents: Agent[];
+  onStart: () => void;
+  theme: { bg: string; surface: string; border: string; text: string; muted: string };
+}) {
+  const selectedAgents = agents.filter(a => config.participants.includes(a.id));
+  const chair = agents.find(a => a.id === config.chair);
+  const mtgType = MTG_TYPES.find(t => t.id === config.type);
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-6 p-8">
+      {/* 種別バッジ */}
+      <div className="text-center space-y-1">
+        <div className="text-4xl">{getMtgTypeIcon(config.type)}</div>
+        <div className="text-xl font-bold">{mtgType?.label}</div>
+        {config.agenda
+          ? <div className="text-sm max-w-xs" style={{ color: theme.muted }}>{config.agenda}</div>
+          : <div className="text-sm italic" style={{ color: theme.muted }}>議題を入力してください</div>
+        }
+      </div>
+
+      {/* 参加者グリッド */}
+      {selectedAgents.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-4 max-w-md">
+          {selectedAgents.map(a => (
+            <div key={a.id} className="flex flex-col items-center gap-1">
+              <PixelCharacter visual={a.visual} size="md" active={a.active} />
+              <div className="text-[10px] text-center" style={{ color: theme.muted }}>
+                {a.name.split(' ')[0]}
+              </div>
+              {a.id === chair?.id && (
+                <div className="text-[9px] text-amber-400">議長</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* メタ情報 */}
+      <div className="text-xs text-center" style={{ color: theme.muted }}>
+        {selectedAgents.length}名参加 · {config.rounds}ラウンド · {getConflictLabel(config.conflict)}
+      </div>
+
+      {/* 実行ボタン */}
+      <button
+        onClick={onStart}
+        disabled={!config.agenda.trim() || config.participants.length === 0}
+        className="px-8 py-3 bg-indigo-500 text-white rounded-xl font-bold hover:bg-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors">
+        MTG開始
+      </button>
+    </div>
+  );
+}
+
 function autoSelectChair(_type: string, agenda: string): string {
   const lower = agenda.toLowerCase();
   if (/要件|機能|ユーザー/.test(lower)) return 'planner';
@@ -295,12 +368,7 @@ export function MtgScreen({ agents, theme }: Props) {
       <div className="flex-1 rounded-xl flex flex-col"
         style={{ background: theme.surface, borderColor: theme.border, borderWidth: 1 }}>
         {phase === 'config' ? (
-          <div className="flex-1 flex items-center justify-center" style={{ color: theme.muted }}>
-            <div className="text-center space-y-2">
-              <span className="text-5xl block">📋</span>
-              <p className="text-lg">MTG設定を入力して開始してください</p>
-            </div>
-          </div>
+          <MtgPreviewPanel config={config} agents={agents} onStart={handleStart} theme={theme} />
         ) : (
           <>
             {/* Chat header */}

@@ -52,78 +52,89 @@ function getStatusBadge(status: string) {
   }
 }
 
+type FilterType = 'all' | 'judgment' | 'approval' | 'alert';
+
+function AgentMini({ agent }: { agent: ReturnType<typeof Array.prototype.find> }) {
+  if (!agent) return <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-lg">{agent?.icon ?? '?'}</div>;
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <PixelCharacter visual={(agent as Agent).visual} size="sm" active={(agent as Agent).active} />
+      <span className="text-[9px] opacity-60 text-center">{(agent as Agent).name}</span>
+    </div>
+  );
+}
+
 export function EscalationScreen({ agents, theme }: Props) {
   const [consultations] = useState<Consultation[]>(DEMO_CONSULTATIONS);
   const [selected, setSelected] = useState<Consultation | null>(null);
-  const [pulseFrom, setPulseFrom] = useState<string | null>(null);
-  const [pulseTo, setPulseTo] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterType>('all');
 
   const getAgent = (id: string) => agents.find(a => a.id === id);
 
   const handleSelect = (c: Consultation) => {
     setSelected(c);
-    setPulseFrom(c.from);
-    setPulseTo(c.to);
-    setTimeout(() => { setPulseFrom(null); setPulseTo(null); }, 2000);
   };
 
   // Stats
-  const totalConsultations = consultations.length;
+  const total = consultations.length;
+  const highCount = consultations.filter(c => c.urgency === 'high').length;
   const approvedCount = consultations.filter(c => c.status === 'approved').length;
-  const alertCount = consultations.filter(c => c.urgency === 'high').length;
+  const pendingCount = consultations.filter(c => c.status === 'pending').length;
+
+  const filtered = filter === 'all' ? consultations : consultations.filter(c => c.type === filter);
+
+  const FILTER_OPTIONS: { id: FilterType; label: string }[] = [
+    { id: 'all', label: 'すべて' },
+    { id: 'judgment', label: '判断相談' },
+    { id: 'approval', label: '承認依頼' },
+    { id: 'alert', label: 'アラート' },
+  ];
 
   return (
     <div className="flex gap-4 h-full min-w-0">
-      {/* Left: Org chart with pulse animation */}
-      <div className="w-72 shrink-0 rounded-xl p-4 space-y-4"
+      {/* Left: Stats + Filter + AgentFlow */}
+      <div className="w-64 shrink-0 rounded-xl p-4 space-y-3"
         style={{ background: theme.surface, borderColor: theme.border, borderWidth: 1 }}>
-        <h3 className="font-bold">組織図</h3>
-        <div className="space-y-3">
-          {agents.map(a => {
-            const isPulseFrom = pulseFrom === a.id;
-            const isPulseTo = pulseTo === a.id;
-            return (
-              <div key={a.id}
-                className={`flex items-center gap-3 p-2 rounded-lg transition-all duration-500
-                  ${isPulseFrom ? 'bg-yellow-500/20 ring-1 ring-yellow-400 animate-pulse' : ''}
-                  ${isPulseTo ? 'bg-indigo-500/20 ring-1 ring-indigo-400 animate-pulse' : ''}
-                  ${!isPulseFrom && !isPulseTo ? 'bg-white/5' : ''}`}>
-                <PixelCharacter visual={a.visual} size="sm" active={a.active} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold truncate">{a.name} {a.title}</div>
-                  <div className="text-[10px]" style={{ color: theme.muted }}>{a.dept}</div>
-                </div>
-                {isPulseFrom && (
-                  <span className="text-xs text-yellow-400 animate-pulse">送信中...</span>
-                )}
-                {isPulseTo && (
-                  <span className="text-xs text-indigo-400 animate-pulse">受信中...</span>
-                )}
-              </div>
-            );
-          })}
+
+        {/* 統計サマリー */}
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            { label: '合計', value: total, icon: '📨', cls: '' },
+            { label: '高優先', value: highCount, icon: '🚨', cls: 'text-red-400' },
+            { label: '承認済', value: approvedCount, icon: '✅', cls: 'text-green-400' },
+            { label: '待機中', value: pendingCount, icon: '⏳', cls: 'text-yellow-400' },
+          ]).map(s => (
+            <div key={s.label} className="p-2.5 rounded-lg bg-white/5 text-center">
+              <div className="text-lg">{s.icon}</div>
+              <div className={`text-xl font-bold ${s.cls}`}>{s.value}</div>
+              <div className="text-[10px]" style={{ color: theme.muted }}>{s.label}</div>
+            </div>
+          ))}
         </div>
 
-        {/* Stats */}
-        <div className="border-t pt-4 space-y-2" style={{ borderColor: theme.border }}>
-          <h4 className="text-xs font-bold opacity-40">統計</h4>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="p-2 bg-white/5 rounded">
-              <div className="text-lg font-bold">{totalConsultations}</div>
-              <div className="text-[10px]" style={{ color: theme.muted }}>相談数</div>
-            </div>
-            <div className="p-2 bg-white/5 rounded">
-              <div className="text-lg font-bold text-green-400">
-                {totalConsultations > 0 ? Math.round((approvedCount / totalConsultations) * 100) : 0}%
-              </div>
-              <div className="text-[10px]" style={{ color: theme.muted }}>承認率</div>
-            </div>
-            <div className="p-2 bg-white/5 rounded">
-              <div className="text-lg font-bold text-red-400">{alertCount}</div>
-              <div className="text-[10px]" style={{ color: theme.muted }}>アラート</div>
+        {/* タイプフィルター */}
+        <div className="space-y-1">
+          {FILTER_OPTIONS.map(opt => (
+            <button key={opt.id}
+              onClick={() => setFilter(opt.id)}
+              className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer
+                ${filter === opt.id ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-400/30' : 'bg-white/5 hover:bg-white/10'}`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 関係者グラフ（選択時のみ） */}
+        {selected && (
+          <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${theme.border}` }}>
+            <div className="text-[10px] font-bold opacity-40">関係者</div>
+            <div className="flex items-center gap-2 justify-center">
+              <AgentMini agent={getAgent(selected.from)} />
+              <span className="opacity-30 text-sm">→</span>
+              <AgentMini agent={getAgent(selected.to)} />
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Center: Consultation list */}
@@ -133,7 +144,7 @@ export function EscalationScreen({ agents, theme }: Props) {
           相談・エスカレーション一覧
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {consultations.length === 0 ? (
+          {filtered.length === 0 ? (
             <div className="flex-1 flex items-center justify-center py-12" style={{ color: theme.muted }}>
               <div className="text-center space-y-2">
                 <span className="text-5xl block">📨</span>
@@ -142,7 +153,7 @@ export function EscalationScreen({ agents, theme }: Props) {
               </div>
             </div>
           ) : (
-            consultations.map(c => {
+            filtered.map(c => {
               const fromAgent = getAgent(c.from);
               const toAgent = getAgent(c.to);
               const urgency = getUrgencyBadge(c.urgency);

@@ -397,13 +397,34 @@ export default function App() {
 
           {view === 'org' && (
             <ErrorBoundary name="組織図">
-            <div className="flex gap-5 p-5">
-              <aside className="w-60 shrink-0">
-                <ScoreBoard agents={company.agents} onSelect={setSelectedAgent} />
-              </aside>
-              <div className="flex-1 rounded-xl p-4" style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
-                <OrgTree agents={company.agents} onSelect={setSelectedAgent} selectedId={selectedAgent?.id}
-                  mission={isLive ? mission : undefined} elapsed={isLive ? relay.elapsed : undefined} />
+            <div className="p-5 space-y-4">
+              {/* チーム統計バー */}
+              <div className="flex gap-3">
+                {([
+                  { icon: '⚡', label: 'チームPower', value: teamPower, color: 'indigo' },
+                  { icon: '🏆', label: 'ランク', value: teamRank, color: 'amber' },
+                  { icon: '📈', label: '平均Lv', value: avgLevel, color: 'green' },
+                  { icon: '👥', label: '在籍', value: `${company.agents.length}名`, color: 'blue' },
+                  { icon: '🎖️', label: 'バッジ', value: totalBadges, color: 'purple' },
+                ] as const).map(card => (
+                  <div key={card.label} className="flex-1 rounded-xl p-3 flex items-center gap-3"
+                    style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
+                    <span className="text-xl">{card.icon}</span>
+                    <div>
+                      <div className="text-[10px] opacity-40">{card.label}</div>
+                      <div className="text-lg font-bold">{card.value}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-5">
+                <aside className="w-60 shrink-0">
+                  <ScoreBoard agents={company.agents} onSelect={setSelectedAgent} />
+                </aside>
+                <div className="flex-1 rounded-xl p-4" style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
+                  <OrgTree agents={company.agents} onSelect={setSelectedAgent} selectedId={selectedAgent?.id}
+                    mission={isLive ? mission : undefined} elapsed={isLive ? relay.elapsed : undefined} />
+                </div>
               </div>
             </div>
             </ErrorBoundary>

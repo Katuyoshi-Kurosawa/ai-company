@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type React from 'react';
 import type { Company, ThemeType } from '../types';
 import { THEMES } from '../data/constants';
 import { useTTSContext } from '../context/TTSContext';
@@ -13,6 +14,18 @@ interface Props {
   onDelete: (id: string) => void;
   onThemeChange: (theme: ThemeType) => void;
   currentTheme: ThemeType;
+}
+
+function SectionCard({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl p-5 space-y-4 bg-white/5 border border-white/10">
+      <div className="flex items-center gap-2">
+        <span>{icon}</span>
+        <h3 className="font-bold text-sm">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
 }
 
 export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, onDelete, onThemeChange, currentTheme }: Props) {
@@ -44,78 +57,96 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
 
   return (
     <div className="space-y-4">
-      {/* Company tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {companies.map(c => (
-          <button key={c.id}
-            onClick={() => onSelect(c.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors cursor-pointer
-              ${c.id === activeCompanyId ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-400/50' : 'bg-white/5 hover:bg-white/10'}`}>
-            <span>{c.icon}</span>
-            <span>{c.name}</span>
-          </button>
-        ))}
-        <button onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
-          + 新規作成
-        </button>
-      </div>
 
-      {/* New company form */}
-      {showForm && (
-        <div className="p-4 bg-white/5 rounded-lg space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs opacity-40">アイコン</label>
-              <input value={icon} onChange={e => setIcon(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-2xl text-center" />
-            </div>
-            <div>
-              <label className="text-xs opacity-40">会社名</label>
-              <input value={name} onChange={e => setName(e.target.value)} placeholder="AI開発株式会社"
-                className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs opacity-40">業種</label>
-              <input value={industry} onChange={e => setIndustry(e.target.value)} placeholder="ソフトウェア開発"
-                className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-sm" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleAdd}
-              className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 cursor-pointer text-sm">
-              作成
+      {/* 🏢 会社管理 */}
+      <SectionCard icon="🏢" title="会社管理">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {companies.map(c => (
+            <button key={c.id}
+              onClick={() => onSelect(c.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm whitespace-nowrap transition-colors cursor-pointer
+                ${c.id === activeCompanyId ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-400/50' : 'bg-white/5 hover:bg-white/10'}`}>
+              <span>{c.icon}</span>
+              <span>{c.name}</span>
             </button>
-            <button onClick={() => setShowForm(false)}
-              className="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 cursor-pointer text-sm">
-              キャンセル
-            </button>
-          </div>
+          ))}
+          <button onClick={() => setShowForm(!showForm)}
+            className="px-4 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10 transition-colors cursor-pointer">
+            + 新規作成
+          </button>
         </div>
-      )}
+        {showForm && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs opacity-40">アイコン</label>
+                <input value={icon} onChange={e => setIcon(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-2xl text-center" />
+              </div>
+              <div>
+                <label className="text-xs opacity-40">会社名</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="AI開発株式会社"
+                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs opacity-40">業種</label>
+                <input value={industry} onChange={e => setIndustry(e.target.value)} placeholder="ソフトウェア開発"
+                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleAdd}
+                className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 cursor-pointer text-sm">
+                作成
+              </button>
+              <button onClick={() => setShowForm(false)}
+                className="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 cursor-pointer text-sm">
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
+        {companies.length > 1 && (
+          <div>
+            {confirmDelete === activeCompanyId ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-red-400">この会社を削除しますか？</span>
+                <button onClick={() => { onDelete(activeCompanyId); setConfirmDelete(null); }}
+                  className="px-3 py-1 bg-red-500 text-white rounded text-xs cursor-pointer">削除</button>
+                <button onClick={() => setConfirmDelete(null)}
+                  className="px-3 py-1 bg-white/10 rounded text-xs cursor-pointer">キャンセル</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(activeCompanyId)}
+                className="text-xs text-red-400/60 hover:text-red-400 cursor-pointer">
+                この会社を削除...
+              </button>
+            )}
+          </div>
+        )}
+      </SectionCard>
 
-      {/* Theme selector */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs opacity-40">テーマ:</span>
-        {(Object.entries(THEMES) as [ThemeType, typeof THEMES[ThemeType]][]).map(([key, t]) => (
-          <button key={key}
-            onClick={() => onThemeChange(key)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs cursor-pointer transition-colors
-              ${currentTheme === key ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-400/50' : 'bg-white/5 hover:bg-white/10'}`}>
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
+      {/* 🎨 テーマ */}
+      <SectionCard icon="🎨" title="テーマ">
+        <div className="flex flex-wrap gap-2">
+          {(Object.entries(THEMES) as [ThemeType, typeof THEMES[ThemeType]][]).map(([key, t]) => (
+            <button key={key}
+              onClick={() => onThemeChange(key)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded text-xs cursor-pointer transition-colors
+                ${currentTheme === key ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-400/50' : 'bg-white/5 hover:bg-white/10'}`}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+      </SectionCard>
 
-      {/* Slack Settings */}
-      <div className="p-4 bg-white/5 rounded-lg space-y-3">
-        <h3 className="text-sm font-bold">Slack通知</h3>
+      {/* 🔔 通知 */}
+      <SectionCard icon="🔔" title="通知">
         <p className="text-xs opacity-40 leading-relaxed">
-          実行完了後に最終報告書をSlackへ送信できます。<br />
-          Incoming Webhook URLを設定してください。
+          実行完了後に最終報告書をSlackへ送信できます。Incoming Webhook URLを設定してください。
         </p>
         <div>
-          <label className="text-xs opacity-40 block mb-1">Webhook URL</label>
+          <label className="text-xs opacity-40 block mb-1">Slack Webhook URL</label>
           <div className="flex gap-2">
             <input
               type="url"
@@ -127,11 +158,8 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
             <button
               onClick={handleSaveSlack}
               className={`px-3 py-1.5 rounded text-xs font-medium transition-colors cursor-pointer ${
-                slackSaved
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
-              }`}
-            >
+                slackSaved ? 'bg-green-500/20 text-green-400' : 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30'
+              }`}>
               {slackSaved ? '保存済み' : '保存'}
             </button>
           </div>
@@ -141,82 +169,60 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
             Webhook URL設定済み。指示室の実行時に「Slackに送信」オプションが表示されます。
           </p>
         )}
-      </div>
+      </SectionCard>
 
-      {/* TTS Settings */}
+      {/* 🔊 音声 (TTS) */}
       {tts.state.available && (
-        <div className="p-4 bg-white/5 rounded-lg space-y-4">
+        <SectionCard icon="🔊" title="音声 (TTS)">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold">音声読み上げ (TTS)</h3>
+            <span className="text-sm opacity-60">読み上げ機能</span>
             <button
               onClick={() => tts.updateSettings({ enabled: !tts.settings.enabled })}
               className={`relative inline-flex w-10 h-5 rounded-full transition-colors cursor-pointer ${
                 tts.settings.enabled ? 'bg-indigo-500' : 'bg-white/20'
               }`}
-              aria-label={tts.settings.enabled ? 'TTS無効化' : 'TTS有効化'}
-            >
+              aria-label={tts.settings.enabled ? 'TTS無効化' : 'TTS有効化'}>
               <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
                 tts.settings.enabled ? 'translate-x-5' : 'translate-x-0'
               }`} />
             </button>
           </div>
-
           {tts.settings.enabled && (
             <div className="space-y-3">
-              {/* Volume */}
               <div>
-                <label className="text-xs opacity-40 block mb-1">
-                  音量: {Math.round(tts.settings.volume * 100)}%
-                </label>
-                <input
-                  type="range" min="0" max="1" step="0.05"
-                  value={tts.settings.volume}
+                <label className="text-xs opacity-40 block mb-1">音量: {Math.round(tts.settings.volume * 100)}%</label>
+                <input type="range" min="0" max="1" step="0.05" value={tts.settings.volume}
                   onChange={e => tts.updateSettings({ volume: Number(e.target.value) })}
-                  className="w-full accent-indigo-400"
-                />
+                  className="w-full accent-indigo-400" />
               </div>
-
-              {/* Female voice */}
               <div>
                 <label className="text-xs opacity-40 block mb-1">女性の声</label>
-                <select
-                  value={tts.settings.femaleVoiceName ?? ''}
+                <select value={tts.settings.femaleVoiceName ?? ''}
                   onChange={e => tts.updateSettings({ femaleVoiceName: e.target.value || null })}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-xs"
-                >
+                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-xs">
                   <option value="">自動 (Kyoko / Haruka)</option>
-                  {tts.availableVoices.map(v => (
-                    <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
-                  ))}
+                  {tts.availableVoices.map(v => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
                 </select>
               </div>
-
-              {/* Male voice */}
               <div>
                 <label className="text-xs opacity-40 block mb-1">男性の声</label>
-                <select
-                  value={tts.settings.maleVoiceName ?? ''}
+                <select value={tts.settings.maleVoiceName ?? ''}
                   onChange={e => tts.updateSettings({ maleVoiceName: e.target.value || null })}
-                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-xs"
-                >
+                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-xs">
                   <option value="">自動 (Otoya / Ichiro)</option>
-                  {tts.availableVoices.map(v => (
-                    <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
-                  ))}
+                  {tts.availableVoices.map(v => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
                 </select>
               </div>
-
               <p className="text-[10px] opacity-30 leading-relaxed">
-                声はブラウザが提供するシステム音声を使用します。
                 macOS: Kyoko（女）/ Otoya（男）、Windows: Haruka / Ichiro
               </p>
             </div>
           )}
-        </div>
+        </SectionCard>
       )}
 
-      {/* Version & Update */}
-      <div className="p-4 bg-white/5 rounded-lg space-y-3">
+      {/* ℹ️ システム情報 */}
+      <SectionCard icon="ℹ️" title="システム情報">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs opacity-40">ビルドバージョン</span>
@@ -229,14 +235,10 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
           <button
             onClick={() => {
               if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(regs => {
-                  regs.forEach(r => r.unregister());
-                });
+                navigator.serviceWorker.getRegistrations().then(regs => { regs.forEach(r => r.unregister()); });
               }
               if ('caches' in window) {
-                caches.keys().then(keys => {
-                  keys.forEach(k => caches.delete(k));
-                });
+                caches.keys().then(keys => { keys.forEach(k => caches.delete(k)); });
               }
               setTimeout(() => location.reload(), 300);
             }}
@@ -244,27 +246,8 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
             <span>↻</span> 最新版に更新
           </button>
         </div>
-      </div>
+      </SectionCard>
 
-      {/* Delete */}
-      {companies.length > 1 && (
-        <div>
-          {confirmDelete === activeCompanyId ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-red-400">この会社を削除しますか？</span>
-              <button onClick={() => { onDelete(activeCompanyId); setConfirmDelete(null); }}
-                className="px-3 py-1 bg-red-500 text-white rounded text-xs cursor-pointer">削除</button>
-              <button onClick={() => setConfirmDelete(null)}
-                className="px-3 py-1 bg-white/10 rounded text-xs cursor-pointer">キャンセル</button>
-            </div>
-          ) : (
-            <button onClick={() => setConfirmDelete(activeCompanyId)}
-              className="text-xs text-red-400/60 hover:text-red-400 cursor-pointer">
-              この会社を削除...
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
