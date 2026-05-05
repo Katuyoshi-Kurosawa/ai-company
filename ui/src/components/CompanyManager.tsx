@@ -233,14 +233,19 @@ export function CompanyManager({ companies, activeCompanyId, onSelect, onAdd, on
             </div>
           </div>
           <button
-            onClick={() => {
+            onClick={async () => {
+              // SW全解除
               if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.getRegistrations().then(regs => { regs.forEach(r => r.unregister()); });
+                const regs = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(regs.map(r => r.unregister()));
               }
+              // 全キャッシュ削除
               if ('caches' in window) {
-                caches.keys().then(keys => { keys.forEach(k => caches.delete(k)); });
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
               }
-              setTimeout(() => location.reload(), 300);
+              // クエリパラメータでキャッシュバスト強制リロード
+              location.replace(location.pathname + '?v=' + Date.now());
             }}
             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/15 text-emerald-400 rounded-lg hover:bg-emerald-500/25 cursor-pointer text-sm font-medium transition-colors ring-1 ring-emerald-400/30">
             <span>↻</span> 最新版に更新
