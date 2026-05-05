@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { MarkdownViewer } from './MarkdownViewer';
 
 const RELAY_URL = 'http://localhost:3939';
@@ -48,8 +49,8 @@ export function FilePreviewModal({ filePath, onClose }: Props) {
     setTimeout(() => setCopied(false), 2000);
   }, [content]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+  const modal = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -119,4 +120,6 @@ export function FilePreviewModal({ filePath, onClose }: Props) {
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
