@@ -429,7 +429,6 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
   const ttsReadIndexRef = useRef(0);
   const tts = useTTSContext();
   const { phase, progress } = detectPhase(lines);
-  const liveStatus = detectLiveStatus(lines, agents);
 
   // リアルタイムログTTS: 新着行をキューに追加
   useEffect(() => {
@@ -457,6 +456,17 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
   const isDone = status === 'done';
   const isError = status === 'error';
   const isRunning = status === 'running' || status === 'connecting';
+
+  const rawLiveStatus = detectLiveStatus(lines, agents);
+  // 完了/エラー時は残ったrunningエージェントを全員doneに強制移行
+  const liveStatus = {
+    ...rawLiveStatus,
+    activeAgents: rawLiveStatus.activeAgents.map(a =>
+      (isDone || isError) && a.status === 'running'
+        ? { ...a, status: 'done' as const }
+        : a
+    ),
+  };
 
   // 完了時にファイル一覧を取得
   useEffect(() => {
