@@ -130,23 +130,26 @@ export function OfficeView({
           selectedAgentId={selectedAgent?.id}
           onAgentClick={handleAgentClick}
         />
-
-        {/* ── QuestLog オーバーレイ: 実行中かつアイテムがあるときのみ表示 ── */}
-        {executing && questItems && questItems.length > 0 && (
-          <div className="absolute bottom-4 right-4 z-20 w-64 rounded-xl border border-white/10 bg-black/60 backdrop-blur-md shadow-lg">
-            {/* ヘッダー */}
-            <div className="px-3 py-2 border-b border-white/10 text-xs font-bold text-amber-300 tracking-wide uppercase">
-              Quest Log
-            </div>
-            {/* アイテムリスト */}
-            <ul className="px-3 py-2 space-y-0.5 max-h-48 overflow-y-auto">
-              {questItems.map((item, i) => (
-                <QuestItemRow key={`${item.label}-${i}`} item={item} />
-              ))}
-            </ul>
-          </div>
-        )}
       </div>
+
+      {/* ── QuestLog: スクロールエリア外に配置（室カードと被らない） ── */}
+      {executing && questItems && questItems.length > 0 && (
+        <div
+          className="absolute bottom-4 z-20 w-56 rounded-xl border border-white/10 bg-black/60 backdrop-blur-md shadow-lg"
+          style={{ left: '1rem' }}
+        >
+          {/* ヘッダー */}
+          <div className="px-3 py-2 border-b border-white/10 text-xs font-bold text-amber-300 tracking-wide uppercase">
+            Quest Log
+          </div>
+          {/* アイテムリスト */}
+          <ul className="px-3 py-2 space-y-0.5 max-h-48 overflow-y-auto">
+            {questItems.map((item, i) => (
+              <QuestItemRow key={`${item.label}-${i}`} item={item} />
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* ── AgentSidePanel: 右固定 360px ── */}
       {selectedAgent && (
