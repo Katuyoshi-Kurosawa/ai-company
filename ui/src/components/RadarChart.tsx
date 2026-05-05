@@ -7,9 +7,10 @@ interface Props {
 }
 
 export function RadarChart({ stats, size = 200 }: Props) {
+  const pad = 28; // ラベルがはみ出さないようにパディングを追加
   const cx = size / 2;
   const cy = size / 2;
-  const r = size * 0.38;
+  const r = size * 0.35;
   const count = STAT_KEYS.length;
 
   const getPoint = (index: number, value: number) => {
@@ -21,7 +22,7 @@ export function RadarChart({ stats, size = 200 }: Props) {
   const gridLevels = [20, 40, 60, 80, 100];
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg width={size} height={size} viewBox={`${-pad} ${-pad} ${size + pad * 2} ${size + pad * 2}`}>
       {/* Grid */}
       {gridLevels.map(level => {
         const points = STAT_KEYS.map((_, i) => {
