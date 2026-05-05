@@ -538,6 +538,108 @@ if [ "$THEME_WEIGHT" = "lightweight" ]; then
   exit 0
 fi
 
+# ── カスタムエージェント用プロンプト生成 ─────────────────────
+
+get_custom_prompt() {
+  local agent_id="$1"
+  local prev_outputs
+  prev_outputs=$(ls "$PROJECT_DIR"/*.md "$PROJECT_DIR"/*.json 2>/dev/null | \
+    xargs -I{} sh -c 'echo "=== {} ==="; head -30 "{}"' 2>/dev/null || echo "")
+
+  local base="テーマ: $THEME
+
+【要件・制約】
+$THEME
+
+【これまでの成果物（参考）】
+${prev_outputs:-なし}
+
+"
+  case "$agent_id" in
+    ceo)
+      echo "${base}CEOとして全体のプロジェクト計画を $PROJECT_DIR/plan.json に JSON形式で出力してください。goals/scope/phases/risks を含めること。" ;;
+    secretary|chief-secretary)
+      echo "${base}秘書として、これまでの成果物を統合した最終報告書を $PROJECT_DIR/secretary-report.md に出力してください。## サマリー セクションから始めること。" ;;
+    marketing)
+      echo "${base}マーケティング部長として市場調査・分析レポートを $PROJECT_DIR/marketing-report.md に出力してください。" ;;
+    hr)
+      echo "${base}人事部長として人事・組織観点での提言を $PROJECT_DIR/hr-report.md に出力してください。" ;;
+    cs)
+      echo "${base}CS部長として顧客満足度・サービス観点での分析を $PROJECT_DIR/cs-report.md に出力してください。" ;;
+    rd)
+      echo "${base}研究開発部長として革新的なアイデアと技術的切り口を $PROJECT_DIR/rd-report.md に出力してください。" ;;
+    planner)
+      echo "${base}企画部長として要件定義書・仕様書を $PROJECT_DIR/requirements.md に出力してください。" ;;
+    architect)
+      echo "${base}設計部長としてアーキテクチャ設計書を $PROJECT_DIR/architecture.md に出力してください。" ;;
+    developer)
+      echo "${base}開発部長として開発計画・実装方針を $PROJECT_DIR/dev-plan.md に出力してください。" ;;
+    qa-reviewer)
+      echo "${base}QA部長としてテスト計画・品質基準を $PROJECT_DIR/qa-plan.md に出力してください。" ;;
+    ui-designer)
+      echo "${base}デザイン部長としてUI/UXデザイン方針・画面設計を $PROJECT_DIR/design.md に出力してください。" ;;
+    doc-writer)
+      echo "${base}資料作成部長として成果物の最終資料を $PROJECT_DIR/document.md に出力してください。" ;;
+    *)
+      echo "${base}担当者として役割に応じた成果物を $PROJECT_DIR/${agent_id}-report.md に出力してください。" ;;
+  esac
+}
+
+# ══════════════════════════════════════════════════════════════
+# カスタムエージェントモード: OVERRIDE_AGENTS が設定されており
+# かつ lightweight / heavy 以外の場合に起動
+# ══════════════════════════════════════════════════════════════
+
+if [ -n "$OVERRIDE_AGENTS" ] && \
+   [ "$THEME_WEIGHT" != "lightweight" ] && \
+   [ "$THEME_WEIGHT" != "heavy" ]; then
+
+  log "============================================"
+  log "🏢 AI会社シミュレーション v5 起動（カスタムモード）"
+  log "📌 テーマ: $THEME"
+  log "👥 エージェント: $OVERRIDE_AGENTS"
+  log "📁 出力先: $PROJECT_DIR"
+  log "============================================"
+
+  IFS=',' read -ra AGENT_LIST <<< "$OVERRIDE_AGENTS"
+
+  for agent_id in "${AGENT_LIST[@]}"; do
+    agent_id=$(echo "$agent_id" | tr -d ' ')
+    log ""
+    log "━━━ 実行: $agent_id ━━━"
+    MODEL=$(get_agent_field "$agent_id" ".model" 2>/dev/null || echo "sonnet")
+    PROMPT=$(get_custom_prompt "$agent_id")
+    run_agent "$agent_id" "$PROMPT" "$MODEL" "15" "300"
+    add_exp "$agent_id" 15 "カスタムモード実行"
+  done
+
+  # secretary が含まれていない場合も最終報告書を作成
+  if ! echo "$OVERRIDE_AGENTS" | grep -q "secretary"; then
+    log ""
+    log "━━━ 最終報告書作成（secretary） ━━━"
+    FINAL_PROMPT=$(get_custom_prompt "secretary")
+    run_agent "secretary" "$FINAL_PROMPT" "sonnet" "10" "240"
+    add_exp "secretary" 10 "最終報告書作成"
+  fi
+
+  PROJECT_END=$(date +%s)
+  TOTAL_DURATION=$((PROJECT_END - PROJECT_START))
+  tmp=$(mktemp)
+  jq ".total_duration_sec = $TOTAL_DURATION | .project_end = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" | .mode = \"custom\"" \
+    "$METRICS_FILE" > "$tmp" && mv "$tmp" "$METRICS_FILE"
+
+  log ""
+  log "============================================"
+  log "🎉 カスタムモード完了"
+  log "👥 実行エージェント: $OVERRIDE_AGENTS"
+  log "⏱️  所要時間: ${TOTAL_DURATION}秒"
+  log "============================================"
+
+  generate_review
+  notify_slack "✅ カスタムモード完了\nテーマ: $THEME\nエージェント: $OVERRIDE_AGENTS\n所要時間: ${TOTAL_DURATION}秒"
+  exit 0
+fi
+
 # ══════════════════════════════════════════════════════════════
 # medium モード: コア4名（CEO + 企画 + 資料作成 + 秘書）で高速処理
 #   設計・開発・QA・デザイン等のシステム系エージェントをスキップ

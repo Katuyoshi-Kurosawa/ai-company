@@ -3,6 +3,7 @@ import type { Agent } from '../types';
 import type { RouteOption, RoutePreset } from '../lib/routeRecommender';
 import { formatTime, loadPresets, savePreset, deletePreset } from '../lib/routeRecommender';
 import { PixelCharacter } from './PixelCharacter';
+import { getAgentRole } from '../lib/agentRoles';
 
 interface Props {
   agents: Agent[];
@@ -17,7 +18,9 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
   const [expandedType, setExpandedType] = useState<string | null>(null);
   const [adjustments, setAdjustments] = useState<Record<string, { agents: string[]; depth: number }>>({});
   const [requirementNotes, setRequirementNotes] = useState('');
-  const [showNotes, setShowNotes] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState<Record<string, boolean>>({});
+
+  const noteCount = requirementNotes.split('\n').filter(l => l.trim()).length;
 
   const getAgent = (id: string) => agents.find(a => a.id === id);
 
@@ -63,37 +66,31 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
 
   return (
     <div className="space-y-2">
-      {/* 要件ポイント入力（任意） */}
+      {/* 要件ポイント入力（常時展開） */}
       <div className="rounded-xl p-3" style={{ background: `${theme.surface}`, border: `1px solid ${theme.border}` }}>
-        <button onClick={() => setShowNotes(!showNotes)}
-          className="flex items-center gap-2 w-full text-left cursor-pointer">
-          <span className="text-sm">📝</span>
-          <span className="text-xs font-bold flex-1">要件ポイント（任意）</span>
-          <span className="text-[10px]" style={{ color: theme.muted }}>
-            {requirementNotes ? `${requirementNotes.split('\n').filter(l => l.trim()).length}件入力済み` : 'より良い成果のためにヒントを追加'}
-          </span>
-          <span className={`text-xs transition-transform ${showNotes ? 'rotate-180' : ''}`}>▼</span>
-        </button>
-        {showNotes && (
-          <div className="mt-2 space-y-2">
-            <textarea
-              value={requirementNotes}
-              onChange={e => setRequirementNotes(e.target.value)}
-              placeholder={"重視するポイントや条件を箇条書きで入力\n例:\n・犬2匹連れ（ペット同伴可の場所限定）\n・予算は1人5000円以内\n・午前中に回りたい"}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs h-24 resize-none focus:ring-1 focus:ring-indigo-500/50 focus:outline-none placeholder:text-white/20"
-            />
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] flex-1" style={{ color: theme.muted }}>
-                入力するとエージェントへの指示に追加されます
-              </span>
-              {requirementNotes && (
-                <button onClick={() => setRequirementNotes('')}
-                  className="text-[10px] px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded cursor-pointer transition-colors"
-                  style={{ color: theme.muted }}>
-                  クリア
-                </button>
-              )}
-            </div>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-sm">📋</span>
+          <span className="text-xs font-bold flex-1">要件ポイント</span>
+          {noteCount > 0 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400">
+              {noteCount}件
+            </span>
+          )}
+          <span className="text-[10px]" style={{ color: theme.muted }}>エージェントへの条件・制約を箇条書きで入力</span>
+        </div>
+        <textarea
+          value={requirementNotes}
+          onChange={e => setRequirementNotes(e.target.value)}
+          placeholder={"重視するポイントや条件を箇条書きで入力\n例:\n・予算は10万円以内\n・モバイル対応必須\n・既存DBは変更しない"}
+          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs h-24 resize-none focus:ring-1 focus:ring-indigo-500/50 focus:outline-none placeholder:text-white/20"
+        />
+        {requirementNotes && (
+          <div className="flex justify-end mt-1">
+            <button onClick={() => setRequirementNotes('')}
+              className="text-[10px] px-2 py-0.5 bg-white/5 hover:bg-white/10 rounded cursor-pointer transition-colors"
+              style={{ color: theme.muted }}>
+              クリア
+            </button>
           </div>
         )}
       </div>
@@ -193,6 +190,36 @@ export function RouteSelector({ agents, routes, theme, onSelect, onAdjust }: Pro
                     })}
                   </div>
                 )}
+
+                {/* 実行プレビュー（折り畳み） */}
+                <div className="mt-2">
+                  <button
+                    onClick={() => setPreviewOpen(p => ({ ...p, [route.type]: !p[route.type] }))}
+                    className="text-[10px] px-2 py-0.5 rounded border cursor-pointer transition-colors hover:bg-white/5"
+                    style={{ borderColor: theme.border, color: theme.muted }}>
+                    {previewOpen[route.type] ? '▲ 実行内容を閉じる' : '▶ 実行内容を確認'}
+                  </button>
+                  {previewOpen[route.type] && (
+                    <div className="mt-2 p-3 rounded-lg space-y-1 text-xs" style={{ background: 'rgba(0,0,0,0.2)', border: `1px solid ${theme.border}` }}>
+                      {adjusted.agents.map((id, i) => {
+                        const a = getAgent(id);
+                        return (
+                          <div key={id} className="flex gap-2 items-baseline">
+                            <span className="opacity-40 shrink-0">({i + 1})</span>
+                            <span className="font-bold">{a?.name}</span>
+                            <span className="opacity-50 text-[10px]">({a?.title})</span>
+                            <span className="opacity-40 text-[10px] ml-1">→ {getAgentRole(id)}</span>
+                          </div>
+                        );
+                      })}
+                      {noteCount > 0 && (
+                        <div className="mt-2 pt-2 text-[10px] text-green-400/70" style={{ borderTop: `1px solid ${theme.border}` }}>
+                          ✓ 要件ポイント（{noteCount}件）は全エージェントに共有されます
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Stats + action */}
