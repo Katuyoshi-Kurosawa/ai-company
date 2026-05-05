@@ -480,10 +480,12 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
     if (panelTab === 'log') logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [lines.length, panelTab]);
 
+  const ttsActive = tts.state.playing || tts.state.paused;
+
   if (!expanded) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-md"
-        style={{ background: 'rgba(15,23,42,0.95)', borderColor: 'rgba(99,102,241,0.3)' }}>
+      <div className="fixed left-0 right-0 z-40 border-t backdrop-blur-md"
+        style={{ bottom: ttsActive ? 44 : 0, background: 'rgba(15,23,42,0.95)', borderColor: 'rgba(99,102,241,0.3)' }}>
         <button onClick={() => setExpanded(true)}
           className="w-full px-4 py-2 flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-colors">
           <div className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-indigo-400 animate-pulse' : isDone ? 'bg-green-400' : 'bg-red-400'}`} />
@@ -502,8 +504,9 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-md"
+    <div className="fixed left-0 right-0 z-40 border-t backdrop-blur-md"
       style={{
+        bottom: ttsActive ? 44 : 0,
         background: 'rgba(15,23,42,0.97)',
         borderColor: isRunning ? 'rgba(99,102,241,0.4)' : isDone ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)',
         boxShadow: `0 -4px 30px ${isRunning ? 'rgba(99,102,241,0.1)' : isDone ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'}`,
