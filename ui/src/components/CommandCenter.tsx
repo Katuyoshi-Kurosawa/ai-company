@@ -38,12 +38,24 @@ type Mode = 'company' | 'mtg' | 'history';
 export function CommandCenter({ agents, theme, relay, onExecute, history, onDeleteHistory, onClearHistory }: Props) {
   const [mode, setMode] = useState<Mode>('company');
 
-  const [companyTheme, setCompanyTheme] = useState('');
+  const [companyTheme, setCompanyTheme] = useState(
+    () => localStorage.getItem('cc-draft-theme') ?? ''
+  );
   const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([]);
   const [mtgType, setMtgType] = useState('kickoff');
-  const [mtgAgenda, setMtgAgenda] = useState('');
+  const [mtgAgenda, setMtgAgenda] = useState(
+    () => localStorage.getItem('cc-draft-agenda') ?? ''
+  );
   const [mtgRounds, setMtgRounds] = useState(3);
   const [mtgConflict, setMtgConflict] = useState('chair');
+
+  // 下書きをlocalStorageに自動保存
+  useEffect(() => {
+    localStorage.setItem('cc-draft-theme', companyTheme);
+  }, [companyTheme]);
+  useEffect(() => {
+    localStorage.setItem('cc-draft-agenda', mtgAgenda);
+  }, [mtgAgenda]);
   const [sendToSlack, setSendToSlack] = useState(false);
   const [slackWebhook, setSlackWebhook] = useState('');
 
@@ -79,6 +91,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     if (sendToSlack && slackWebhook) args.slackWebhook = slackWebhook;
     relay.execute('company', args as Record<string, string | number>);
     onExecute(`${route.icon} ${route.label}: ${companyTheme}`, 'company', args);
+    localStorage.removeItem('cc-draft-theme');
   };
 
   // 実行履歴から再実行
@@ -96,6 +109,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     relay.execute('mtg', args);
     const label = MTG_TYPES.find(t => t.id === mtgType)?.label ?? mtgType;
     onExecute(`${label}: ${mtgAgenda}`, 'mtg', args);
+    localStorage.removeItem('cc-draft-agenda');
   };
 
   return (
