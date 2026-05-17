@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Agent } from '../types';
 import type { RelayState } from '../hooks/useRelay';
 import { AutoTextarea } from './AutoTextarea';
@@ -8,6 +8,17 @@ import { ExecutionHistory } from './ExecutionHistory';
 import { RouteSelector } from './RouteSelector';
 import { recommendRoutes } from '../lib/routeRecommender';
 import type { RouteOption } from '../lib/routeRecommender';
+
+// 広範囲・曖昧な指示を示すキーワード（タイムアウトリスクが高い）
+const BROAD_SCOPE_KEYWORDS = [
+  '全部', 'すべて', '全て', '一から', '完璧', '完全',
+  '全機能', '丸ごと', 'まるごと', '大規模', '全体的',
+  '全部作', 'すべて作', 'まるごと作', '全部実装', '全体を作',
+];
+
+function hasBroadScope(text: string): boolean {
+  return BROAD_SCOPE_KEYWORDS.some(kw => text.includes(kw));
+}
 
 interface Props {
   agents: Agent[];
@@ -49,6 +60,10 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
   const [mtgRounds, setMtgRounds] = useState(3);
   const [mtgConflict, setMtgConflict] = useState('chair');
 
+  // 案B: 広範囲指示の確認ダイアログ
+  const [pendingRoute, setPendingRoute] = useState<{ route: RouteOption; notes?: string } | null>(null);
+  const confirmRef = useRef<HTMLDivElement>(null);
+
   // 下書きをlocalStorageに自動保存
   useEffect(() => {
     localStorage.setItem('cc-draft-theme', companyTheme);
@@ -69,8 +84,8 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     return recommendRoutes(companyTheme, agents);
   }, [companyTheme, agents]);
 
-  // ルート選択時の実行ハンドラ
-  const handleRouteSelect = (route: RouteOption, requirementNotes?: string) => {
+  // 実際に実行するヘルパー
+  const executeRoute = (route: RouteOption, requirementNotes?: string) => {
     if (!companyTheme.trim()) return;
     let fullTheme = companyTheme;
     if (attachedFiles.length > 0) {
@@ -94,6 +109,17 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
     localStorage.removeItem('cc-draft-theme');
   };
 
+  // ルート選択時の実行ハンドラ（案B: 広範囲指示は確認ダイアログを表示）
+  const handleRouteSelect = (route: RouteOption, requirementNotes?: string) => {
+    if (!companyTheme.trim()) return;
+    const isHeavyRoute = route.type === 'full' || route.type === 'medium';
+    if (isHeavyRoute && hasBroadScope(companyTheme)) {
+      setPendingRoute({ route, notes: requirementNotes });
+      return;
+    }
+    executeRoute(route, requirementNotes);
+  };
+
   // 実行履歴から再実行
   const handleRetry = (record: ExecutionRecord) => {
     if (!relay.connected) return;
@@ -114,6 +140,40 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
 
   return (
     <div className="flex gap-6 h-full min-w-0">
+      {/* 案B: 広範囲指示の確認ダイアログ */}
+      {pendingRoute && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div ref={confirmRef} className="w-full max-w-md mx-4 rounded-2xl p-6 space-y-4 shadow-2xl"
+            style={{ background: theme.surface, border: `1px solid ${theme.border}` }}>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl mt-0.5">⚠️</span>
+              <div>
+                <h3 className="font-bold text-base mb-1">広範囲の指示が含まれています</h3>
+                <p className="text-sm" style={{ color: theme.muted }}>
+                  「全部」「すべて」などの広範囲な指示は処理に時間がかかり、タイムアウトが発生する場合があります。
+                </p>
+              </div>
+            </div>
+            <div className="rounded-lg px-3 py-2 bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+              💡 より具体的な指示（例:「ログイン機能を追加したい」）や、軽量ルートから始めることをお勧めします。
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                onClick={() => setPendingRoute(null)}
+                className="px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors"
+                style={{ background: 'rgba(255,255,255,0.08)' }}>
+                キャンセル
+              </button>
+              <button
+                onClick={() => { executeRoute(pendingRoute.route, pendingRoute.notes); setPendingRoute(null); }}
+                className="px-4 py-2 rounded-lg text-sm font-bold cursor-pointer transition-colors bg-indigo-500 hover:bg-indigo-600 text-white">
+                このまま実行
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left sidebar */}
       <div className="w-60 shrink-0 space-y-4">
         {/* Connection */}
@@ -202,7 +262,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
                 <AutoTextarea
                   value={companyTheme}
                   onChange={v => setCompanyTheme(v)}
-                  placeholder="例: 顧客ランク別割引機能を追加したい&#10;&#10;ファイルをペースト or ドラッグ＆ドロップで添付できます"
+                  placeholder="例: ユーザー登録フォームにバリデーションを追加したい&#10;例: 商品一覧をカテゴリで絞り込めるようにしたい&#10;&#10;具体的な機能名や対象画面を書くとより精度が上がります&#10;ファイルをペースト or ドラッグ＆ドロップで添付できます"
                   minRows={3}
                   maxRows={16}
                   onFiles={files => setAttachedFiles(prev => [...prev, ...files])}
@@ -307,7 +367,7 @@ export function CommandCenter({ agents, theme, relay, onExecute, history, onDele
                 <AutoTextarea
                   value={mtgAgenda}
                   onChange={setMtgAgenda}
-                  placeholder="議題を入力..."
+                  placeholder="例: 新機能のUI設計方針について&#10;例: バグ再発防止のためのテスト戦略を検討したい&#10;例: 次期リリースの優先度を決めたい"
                   minRows={2}
                   maxRows={8}
                 />

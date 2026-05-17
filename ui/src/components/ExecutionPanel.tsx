@@ -106,6 +106,17 @@ function formatElapsed(s: number): string {
   return m > 0 ? `${m}:${String(sec).padStart(2, '0')}` : `0:${String(sec).padStart(2, '0')}`;
 }
 
+// 経過時間と進捗率から残り時間を推定（elapsed=秒, progress=0-100）
+function estimateRemaining(progress: number, elapsed: number): string | null {
+  if (progress <= 5 || progress >= 100) return null;
+  if (elapsed < 60) return null; // データ不足
+  const estimatedTotal = elapsed / (progress / 100);
+  const remaining = Math.round((estimatedTotal - elapsed) / 60);
+  if (remaining <= 0) return '1分未満';
+  if (remaining > 60) return null; // 不確かすぎる
+  return `約${remaining}分`;
+}
+
 // ログから現在アクティブなエージェントと最新アクティビティを検出
 function detectLiveStatus(lines: LogLine[], agents: Agent[]): {
   activeAgents: { id: string; name: string; status: 'running' | 'done' | 'warning' | 'error'; reason?: string }[];
@@ -501,6 +512,7 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
           <div className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-indigo-400 animate-pulse' : isDone ? 'bg-green-400' : 'bg-red-400'}`} />
           <span className="text-sm font-bold">{phase}</span>
           <span className="text-xs opacity-50 font-mono">{formatElapsed(elapsed)}</span>
+          {isRunning && (() => { const rem = estimateRemaining(progress, elapsed); return rem ? <span className="text-[10px] text-indigo-300/60">残り{rem}</span> : null; })()}
           <div className="flex-1 mx-4">
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-1000"
@@ -533,6 +545,12 @@ export function ExecutionPanel({ agents, status, lines, elapsed, error, commandL
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-white truncate">{commandLabel}</span>
             <span className="text-xs text-white/40 font-mono">{formatElapsed(elapsed)}</span>
+            {isRunning && (() => {
+              const rem = estimateRemaining(progress, elapsed);
+              return rem ? (
+                <span className="text-[10px] text-indigo-300/60 font-mono">残り{rem}</span>
+              ) : null;
+            })()}
           </div>
           <div className="text-xs text-white/50 mt-0.5 flex items-center gap-2">
             <span>{phase}</span>
